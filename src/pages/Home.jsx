@@ -19,7 +19,7 @@ const Home = () => {
                 <AppRouter />
             </Content>
 
-            <Footer className="bg-gray-800 text-center py-6 mt-1">
+            <Footer className="bg-gray-800 text-center py-2 mt-1">
                 <FooterMain />
             </Footer>
         </Layout>
