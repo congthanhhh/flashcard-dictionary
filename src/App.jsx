@@ -1,7 +1,10 @@
+import Home from "./pages/Home";
+import AppRouter from "./router/AppRouter";
+
 export default function App() {
   return (
-    <h1 className="text-3xl font-bold underline">
-      Hello world!
-    </h1>
+    <>
+      <Home />
+    </>
   )
 }
