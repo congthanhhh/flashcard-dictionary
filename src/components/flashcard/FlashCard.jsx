@@ -1,10 +1,15 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
+  ArrowLeftOutlined,
+  ArrowRightOutlined,
   CalendarOutlined,
   FrownOutlined,
   MehOutlined,
+  PlusOutlined,
+  RetweetOutlined,
   SmileOutlined,
 } from "@ant-design/icons";
+import { Button, Carousel } from "antd";
 
 const flashcards = [
   { front: "Apple", back: "Quả táo" },
@@ -15,12 +20,26 @@ const flashcards = [
 export default function FlashCard() {
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
+  const carouselRef = useRef(null);
 
-  const card = flashcards[index];
+  const handleNext = () => {
+    carouselRef.current?.next();
+    setFlipped(false);
+  };
+
+  const handlePrevious = () => {
+    carouselRef.current?.prev();
+    setFlipped(false);
+  };
+
+  const handleSlideChange = (currentSlide) => {
+    setIndex(currentSlide);
+    setFlipped(false);
+  };
 
   return (
-    <div>
-      <h1 className="text-3xl font-bold text-center my-8">
+    <div className="bg-gray-100">
+      <h1 className="text-3xl font-bold text-center py-8">
         Luyện tập: Từ vựng tiếng Anh văn phòng
       </h1>
 
@@ -47,123 +66,93 @@ export default function FlashCard() {
       </div>
 
       <div className="flex flex-col items-center justify-center">
-        <div
-          className="w-[745px] h-[350px] relative"
-          style={{ perspective: "1000px" }}
-        >
-          <div
-            className={`w-full h-full transition-transform duration-500 relative`}
-            style={{
-              transformStyle: "preserve-3d",
-              transform: flipped ? "rotateY(180deg)" : "rotateY(0deg)",
-            }}
+        <div className="w-[750px] h-[350px]">
+          <Carousel
+            ref={carouselRef}
+            afterChange={handleSlideChange}
+            dots={false}
+            infinite={true}
+            speed={800}
           >
-            {/* Front */}
-            <div
-              className="absolute w-full h-full bg-gray-100 rounded-xl shadow-md flex items-center justify-center text-xl font-bold"
-              style={{
-                backfaceVisibility: "hidden",
-              }}
-            >
-              {card.front}
-            </div>
+            {flashcards.map((cardData, cardIndex) => (
+              <div key={cardIndex}>
+                <div
+                  className="w-[750px] h-[350px] relative"
+                  style={{ perspective: "1000px" }}
+                >
+                  <div
+                    className="w-full h-full transition-transform duration-500 relative border-x-2 border-slate-100"
+                    style={{
+                      transformStyle: "preserve-3d",
+                      transform: flipped && cardIndex === index ? "rotateY(180deg)" : "rotateY(0deg)",
+                    }}
+                  >
+                    {/* Front */}
+                    <div
+                      className="absolute w-full h-full bg-white  shadow-md flex items-center justify-center text-xl font-bold"
+                      style={{
+                        backfaceVisibility: "hidden",
+                      }}
+                    >
+                      {cardData.front}
+                    </div>
 
-            {/* Back */}
-            <div
-              className="absolute w-full h-full bg-blue-100 rounded-xl shadow-md flex items-center justify-center text-xl font-bold"
-              style={{
-                transform: "rotateY(180deg)",
-                backfaceVisibility: "hidden",
-              }}
+                    {/* Back */}
+                    <div
+                      className="absolute w-full h-full bg-blue-100 shadow-md flex items-center justify-center text-xl font-bold"
+                      style={{
+                        transform: "rotateY(180deg)",
+                        backfaceVisibility: "hidden",
+                      }}
+                    >
+                      {cardData.back}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </Carousel>
+        </div>
+
+        <div className="relative flex">
+          <div className="mt-5 space-x-4 mb-5">
+            <Button
+              variant="outlined"
+              color="primary"
+              onClick={handlePrevious}
+              size="large"
             >
-              {card.back}
-            </div>
+              <ArrowLeftOutlined className="px-2 text-lg" />
+            </Button>
+            <Button
+              onClick={() => setFlipped(!flipped)}
+              variant="outlined"
+              color="primary"
+              size="large"
+            >
+              <RetweetOutlined className="px-2 text-lg" />
+            </Button>
+            <Button
+              variant="outlined"
+              color="primary"
+              onClick={handleNext}
+              size="large"
+            >
+              <ArrowRightOutlined className="px-2 text-lg" />
+            </Button>
+          </div>
+          <div className="absolute right-[-114%] bottom-[25%]">
+            <Button size="large" variant="outlined" color="danger" icon={<MehOutlined />}>
+              Học lại
+            </Button>
+          </div>
+          <div className="absolute left-[-114%] bottom-[25%]">
+            <Button size="large" variant="outlined" color="green" icon={<PlusOutlined />}>
+              List của tôi
+            </Button>
           </div>
         </div>
-
-        <div className="mt-5 space-x-4 mb-5">
-          <button
-            onClick={() => setFlipped(!flipped)}
-            className="bg-blue-500 text-white px-5 py-2 rounded hover:bg-blue-600"
-          >
-            Flip
-          </button>
-          <button
-            onClick={() => {
-              setIndex((i) => (i + 1) % flashcards.length);
-              setFlipped(false);
-            }}
-            className="bg-gray-300 px-4 py-2 rounded hover:bg-gray-400"
-          >
-            Next
-          </button>
-        </div>
-        <div className="mb-8 flex justify-between items-center w-full max-w-4xl mx-auto px-8">
-          <button
-            type="button"
-            className="flex flex-col items-center flex-1 focus:outline-none group cursor-pointer bg-transparent border-0"
-            onClick={() => alert("Bạn chọn Dễ!")}
-          >
-            <SmileOutlined className="text-3xl text-green-500 group-hover:scale-110 transition-transform" />
-            <span className="mt-2 text-green-600 font-semibold">
-              Dễ
-            </span>
-          </button>
-          <button
-            type="button"
-            className="flex flex-col items-center flex-1 focus:outline-none group cursor-pointer bg-transparent border-0"
-            onClick={() => alert("Bạn chọn Trung bình!")}
-          >
-            <MehOutlined className="text-3xl text-yellow-500 group-hover:scale-110 transition-transform" />
-            <span className="mt-2 text-yellow-600 font-semibold">
-              Trung bình
-            </span>
-          </button>
-          <button
-            type="button"
-            className="flex flex-col items-center flex-1 focus:outline-none group cursor-pointer bg-transparent border-0"
-            onClick={() => alert("Bạn chọn Khó!")}
-          >
-            <FrownOutlined className="text-3xl text-red-500 group-hover:scale-110 transition-transform" />
-            <span className="mt-2 text-red-600 font-semibold">
-              Khó
-            </span>
-          </button>
-          <button
-            type="button"
-            className="flex flex-col items-center flex-1 focus:outline-none group cursor-pointer bg-transparent border-0"
-            onClick={() => alert("Bạn chọn Đã biết!")}
-          >
-            <span className="text-3xl text-blue-400 group-hover:scale-110 transition-transform">
-              <svg
-                width="1em"
-                height="1em"
-                viewBox="0 0 24 24"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  d="M7 12h2m4 0h2m-7 0a5 5 0 1 1 10 0 5 5 0 0 1-10 0Zm10 0a5 5 0 1 1-10 0 5 5 0 0 1 10 0Z"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-                <path
-                  d="M15 12l2 2m0-2l-2 2"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </span>
-            <span className="mt-2 text-blue-400 font-semibold text-center">
-              Đã biết, loại khỏi
-              <br />
-              danh sách ôn tập
-            </span>
-          </button>
+        <div className="mb-8 ">
         </div>
       </div>
     </div>

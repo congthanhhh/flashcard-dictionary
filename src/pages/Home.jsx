@@ -15,7 +15,7 @@ const Home = () => {
             </Header>
             <SearchInput />
 
-            <Content className="bg-white px-6">
+            <Content className="bg-white">
                 <AppRouter />
             </Content>
 
