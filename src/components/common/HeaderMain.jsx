@@ -1,37 +1,89 @@
+import { useEffect, useState } from "react";
 import { UserOutlined } from "@ant-design/icons";
-import { Typography, Button, Dropdown, Space } from "antd";
-const items = [
-  {
-    key: "1",
-    label: (
-      <a target="_blank" rel="noopener noreferrer" href="">
-        Đăng nhập
-      </a>
-    ),
-  },
-  {
-    key: "2",
-    label: (
-      <a target="_blank" rel="noopener noreferrer" href="">
-        Trang cá nhân
-      </a>
-    ),
-  },
-  {
-    key: "3",
-    label: (
-      <a target="_blank" rel="noopener noreferrer" href="">
-        Liên hệ
-      </a>
-    ),
-  },
-];
-
+import { Typography, Button, Dropdown, Space, message } from "antd";
+import LoginModal from "../auth/LoginModal";
+import RegisterModal from "../auth/RegisterModal";
+import { logout } from "../../service/user";
 const { Title } = Typography;
 
 const HeaderMain = () => {
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
+  const [messageApi, contextHolder] = message.useMessage();
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userData, setUserData] = useState(null);
+
+
+  const handleLoginClick = () => {
+    setIsLoginModalOpen(true);
+  };
+
+  const handleCloseLoginModal = () => {
+    setIsLoginModalOpen(false);
+  };
+
+  const handleCloseRegisterModal = () => {
+    setIsRegisterModalOpen(false);
+  };
+
+  const handleSwitchToRegister = () => {
+    setIsLoginModalOpen(false);
+    setIsRegisterModalOpen(true);
+  };
+
+  const handleSwitchToLogin = () => {
+    setIsRegisterModalOpen(false);
+    setIsLoginModalOpen(true);
+  };
+
+  // useEffect(() => {
+  //   const token = localStorage.getItem('authToken');
+  //   if (token) {
+  //     setIsLoggedIn(true);
+  //     const userData = 
+  //   }
+  // },[])
+
+  const handleLogout = () => {
+    const logoutSuccess = logout();
+    if (logoutSuccess) {
+      messageApi.open({
+        content: <div className="text-lg text-green-600">Đăng xuất thành công</div>,
+        duration: 2,
+        type: "success"
+      });
+    }
+  };
+
+  const items = [
+    {
+      key: "1",
+      label: (
+        <span onClick={handleLoginClick} className="cursor-pointer">
+          Đăng nhập
+        </span>
+      ),
+    },
+    {
+      key: "2",
+      label: (
+        <a target="_blank" rel="noopener noreferrer" href="">
+          Trang cá nhân
+        </a>
+      ),
+    },
+    {
+      key: "3",
+      label: (
+        <span onClick={handleLogout} className="cursor-pointer">
+          Đăng xuất
+        </span>
+      ),
+    },
+  ];
   return (
     <div className="max-w-screen-xl mx-auto flex items-center justify-between">
+      {contextHolder}
       <div className="flex items-center space-x-8">
         <div className="flex items-center">
           <div className="w-8 h-8 bg-blue-500 rounded mr-3 flex items-center justify-center">
@@ -66,6 +118,20 @@ const HeaderMain = () => {
           </Space>
         </Space>
       </div>
+
+      {/* Login Modal */}
+      <LoginModal
+        isOpen={isLoginModalOpen}
+        onClose={handleCloseLoginModal}
+        onSwitchToRegister={handleSwitchToRegister}
+      />
+
+      {/* Register Modal */}
+      <RegisterModal
+        isOpen={isRegisterModalOpen}
+        onClose={handleCloseRegisterModal}
+        onSwitchToLogin={handleSwitchToLogin}
+      />
     </div>
   );
 };
