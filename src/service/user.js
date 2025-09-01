@@ -2,7 +2,7 @@ import apiClient from './config'
 
 export const registerUser = async (userData) => {
     try {
-        const response = await apiClient.post('/users/register', userData);
+        const response = await apiClient.post('/api/users/register', userData);
         return response.data;
     } catch (error) {
         throw error.response?.data || error.message;
@@ -11,7 +11,7 @@ export const registerUser = async (userData) => {
 
 export const loginUser = async (credentials) => {
     try {
-        const response = await apiClient.post('/users/login', credentials);
+        const response = await apiClient.post('/api/users/login', credentials);
         if (response.data.token) {
             localStorage.setItem('authToken', response.data.token);
         }
@@ -23,7 +23,7 @@ export const loginUser = async (credentials) => {
 
 export const updateProfile = async (updateData) => {
     try {
-        const response = await apiClient.patch('/users/profile', updateData);
+        const response = await apiClient.patch('/api/users/profile', updateData);
         return response.data;
     } catch (error) {
         throw error.response?.data || error.message;
@@ -37,6 +37,15 @@ export const logout = () => {
         return true;
     }
     return false;
+};
+
+export const getUserProfile = async () => {
+    try {
+        const response = await apiClient.get('/api/users/profile');
+        return response.data;
+    } catch (error) {
+        throw error.response?.data || error.message;
+    }
 };
 
 

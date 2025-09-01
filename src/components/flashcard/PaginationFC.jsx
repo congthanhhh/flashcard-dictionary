@@ -1,12 +1,15 @@
 import { Pagination } from "antd";
 
-const PaginationFC = () => {
+const PaginationFC = ({ current, total, pageSize, onChange }) => {
     return (
         <Pagination
             align="end"
             simple
             showSizeChanger={false}
-            total={50}
+            current={current}
+            pageSize={pageSize}
+            total={total}
+            onChange={onChange}
         />
     )
 }

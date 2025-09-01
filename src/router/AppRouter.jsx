@@ -9,8 +9,8 @@ const AppRouter = () => {
         <Routes>
             <Route path="/" element={<CardMain />} />
             <Route path="/search" element={<SearchResult />} />
-            <Route path="/flashcard" element={<FlashCard />} />
-            <Route path="/card-detail" element={<CardDetail />} />
+            <Route path="/flashcard/:deckId" element={<FlashCard />} />
+            <Route path="/card-detail/:deckId" element={<CardDetail />} />
         </Routes>
     )
 }
