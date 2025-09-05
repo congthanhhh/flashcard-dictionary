@@ -3,6 +3,7 @@ import CardMain from '../components/flashcard/CardMain';
 import SearchResult from '../components/SearchDic/SearchResult';
 import FlashCard from '../components/flashcard/FlashCard';
 import CardDetail from '../components/flashcard/CardDetail';
+import CardMyList from '../components/flashcard/CardMyList';
 
 const AppRouter = () => {
     return (
@@ -11,6 +12,7 @@ const AppRouter = () => {
             <Route path="/search" element={<SearchResult />} />
             <Route path="/flashcard/:deckId" element={<FlashCard />} />
             <Route path="/card-detail/:deckId" element={<CardDetail />} />
+            <Route path="/my-list" element={<CardMyList />} />
         </Routes>
     )
 }

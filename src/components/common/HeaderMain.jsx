@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { UserOutlined, CaretDownOutlined } from "@ant-design/icons";
 import { Typography, Button, Dropdown, Space, message } from "antd";
 import LoginModal from "../auth/LoginModal";
@@ -7,6 +8,7 @@ import { getUserProfile, logout } from "../../service/user";
 const { Title } = Typography;
 
 const HeaderMain = () => {
+  const navigate = useNavigate();
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
   const [messageApi, contextHolder] = message.useMessage();
@@ -68,6 +70,22 @@ const HeaderMain = () => {
     }
   };
 
+  const handleMyListClick = () => {
+    if (!isLoggedIn) {
+      messageApi.warning({
+        content: 'Vui lòng đăng nhập để sử dụng tính năng này',
+        duration: 3,
+      });
+      // Có thể mở modal đăng nhập luôn
+      setTimeout(() => {
+        setIsLoginModalOpen(true);
+      }, 1000);
+    } else {
+      // Navigate to CardMyList - cần tạo route này
+      navigate('/my-list');
+    }
+  };
+
   const items = isLoggedIn ? [
     {
       key: "2",
@@ -117,13 +135,19 @@ const HeaderMain = () => {
         </div>
 
         <div className="flex space-x-6 items-center">
-          <span className="text-gray-600 hover:text-blue-500 cursor-pointer">
+          <span
+            className="text-gray-600 hover:text-blue-500 cursor-pointer"
+            onClick={() => navigate('/')}
+          >
             Trang chủ
           </span>
           <span className="text-gray-600 hover:text-blue-500 cursor-pointer">
             Đang học
           </span>
-          <span className="text-gray-600 hover:text-blue-500 cursor-pointer">
+          <span
+            className="text-gray-600 hover:text-blue-500 cursor-pointer"
+            onClick={handleMyListClick}
+          >
             List từ của tôi
           </span>
         </div>

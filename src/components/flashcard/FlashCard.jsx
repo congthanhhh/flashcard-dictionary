@@ -18,7 +18,12 @@ import { Swiper, SwiperSlide } from 'swiper/react';
 import { Navigation } from 'swiper/modules';
 import 'swiper/css';
 import 'swiper/css/navigation';
-import { getDefaultDeckCards, getDefaultDeckId, getUserDeckCards, getUserDeckById } from '../../service/deck';
+import {
+  getDefaultDeckCards,
+  getDefaultDeckId,
+  getUserDeckCards,
+  getUserDeckById
+} from '../../service/deck';
 
 export default function FlashCard() {
   const { deckId } = useParams();
@@ -29,14 +34,16 @@ export default function FlashCard() {
   const [flashcards, setFlashcards] = useState([]);
   const [loading, setLoading] = useState(true);
   const [deck, setDeck] = useState(null);
+  // Khởi tạo isUserDeck ngay từ đầu dựa trên location state
+  const [isUserDeck, setIsUserDeck] = useState(() => {
+    console.log('FlashCard - Initialize with location state:', location.state);
+    return location.state?.isUserDeck || false;
+  });
   const swiperRef = useRef(null);
   const [messageApi, contextHolder] = message.useMessage();
   const [cardRatings, setCardRatings] = useState({}); // Track difficulty for each card
   const [favoriteCards, setFavoriteCards] = useState(new Set()); // Track favorite cards
   const [showHint, setShowHint] = useState({}); // Track hint visibility for each card
-
-  // Detect deck type based on referrer or URL pattern
-  const isUserDeck = location.state?.isUserDeck || false;
 
   const toggleHint = (cardId) => {
     setShowHint(prev => ({
@@ -45,17 +52,34 @@ export default function FlashCard() {
     }));
   };
 
+  // Load data khi có deckId
   useEffect(() => {
-    if (deckId) {
-      loadFlashcards();
-      loadDeckInfo();
+    // Detect deck type từ location state hoặc referrer khi component mount
+    let detectedIsUserDeck = false;
+    if (location.state?.isUserDeck !== undefined) {
+      detectedIsUserDeck = location.state.isUserDeck;
+    } else {
+      const referrer = document.referrer;
+      detectedIsUserDeck = referrer.includes('/my-list');
     }
-  }, [deckId]);
 
-  const loadDeckInfo = async () => {
+    console.log('FlashCard - Detected isUserDeck:', detectedIsUserDeck, 'deckId:', deckId);
+    setIsUserDeck(detectedIsUserDeck);
+
+    if (deckId) {
+      // Delay để đảm bảo isUserDeck đã được set
+      setTimeout(() => {
+        loadFlashcards(detectedIsUserDeck);
+        loadDeckInfo(detectedIsUserDeck);
+      }, 0);
+    }
+  }, [deckId, location.state]); // Dependencies
+
+  const loadDeckInfo = async (userDeck = isUserDeck) => {
     try {
+      console.log('Loading deck info - userDeck:', userDeck, 'deckId:', deckId);
       let deckInfo;
-      if (isUserDeck) {
+      if (userDeck) {
         deckInfo = await getUserDeckById(deckId);
       } else {
         deckInfo = await getDefaultDeckId(deckId);
@@ -67,12 +91,13 @@ export default function FlashCard() {
     }
   };
 
-  const loadFlashcards = async () => {
+  const loadFlashcards = async (userDeck = isUserDeck) => {
     try {
       setLoading(true);
-      // Load tất cả cards với limit lớn
+      console.log('Loading flashcards - userDeck:', userDeck, 'deckId:', deckId);
+
       let response;
-      if (isUserDeck) {
+      if (userDeck) {
         response = await getUserDeckCards(deckId, 1, 1000);
       } else {
         response = await getDefaultDeckCards(deckId, 1, 1000);
@@ -94,7 +119,8 @@ export default function FlashCard() {
       });
 
       setFlashcards(cards);
-      messageApi.success(`Đã load ${cards.length} từ để luyện tập`);
+      const deckType = userDeck ? 'cá nhân' : 'mặc định';
+      messageApi.success(`Đã load ${cards.length} từ từ deck ${deckType} để luyện tập`);
 
     } catch (error) {
       console.error('Error loading flashcards:', error);
@@ -179,13 +205,9 @@ export default function FlashCard() {
           <h2 className="text-2xl font-bold text-gray-600 mb-4">
             Không có flashcard nào
           </h2>
-          <Button onClick={() => {
-            if (isUserDeck) {
-              navigate(`/deck/${deckId}`);
-            } else {
-              navigate(`/card-detail/${deckId}`);
-            }
-          }}>
+          <Button onClick={() => navigate(`/card-detail/${deckId}`, {
+            state: { isUserDeck }
+          })}>
             Quay lại
           </Button>
         </div>
@@ -202,22 +224,29 @@ export default function FlashCard() {
           <div className="flex items-center justify-between mb-4">
             <Button
               icon={<HomeOutlined />}
-              onClick={() => {
-                if (isUserDeck) {
-                  navigate(`/deck/${deckId}`);
-                } else {
-                  navigate(`/card-detail/${deckId}`);
-                }
-              }}
+              onClick={() => navigate(`/card-detail/${deckId}`, {
+                state: { isUserDeck }
+              })}
               className="flex items-center shadow-sm"
               size="large"
             >
               Quay lại
             </Button>
             <div className="text-center flex-1 mx-8">
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent uppercase">
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent uppercase mb-2">
                 {deck?.name || 'Flashcards'}
               </h1>
+              <div className="flex justify-center">
+                {isUserDeck ? (
+                  <span className="text-sm bg-blue-500 text-white px-3 py-1 rounded-full">
+                    Deck cá nhân
+                  </span>
+                ) : (
+                  <span className="text-sm bg-green-500 text-white px-3 py-1 rounded-full">
+                    Deck mặc định
+                  </span>
+                )}
+              </div>
             </div>
             <div className="text-right">
               <div className="bg-white/70 backdrop-blur-sm rounded-lg px-4 py-2 flex items-center">
