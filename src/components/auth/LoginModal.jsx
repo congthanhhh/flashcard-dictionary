@@ -36,7 +36,6 @@ const LoginModal = ({ isOpen, onClose, onSwitchToRegister, onLoginSuccess }) => 
             });
 
             form.resetFields();
-            onClose();
 
             if (onLoginSuccess) {
                 onLoginSuccess(response);
