@@ -236,17 +236,7 @@ export default function FlashCard() {
               <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent uppercase mb-2">
                 {deck?.name || 'Flashcards'}
               </h1>
-              <div className="flex justify-center">
-                {isUserDeck ? (
-                  <span className="text-sm bg-blue-500 text-white px-3 py-1 rounded-full">
-                    Deck cá nhân
-                  </span>
-                ) : (
-                  <span className="text-sm bg-green-500 text-white px-3 py-1 rounded-full">
-                    Deck mặc định
-                  </span>
-                )}
-              </div>
+
             </div>
             <div className="text-right">
               <div className="bg-white/70 backdrop-blur-sm rounded-lg px-4 py-2 flex items-center">

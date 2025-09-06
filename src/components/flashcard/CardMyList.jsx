@@ -1,14 +1,16 @@
-import { FileTextOutlined, LoadingOutlined, UsergroupAddOutlined, UserOutlined } from '@ant-design/icons'
-import { Card, Spin } from 'antd'
+import { FileTextOutlined, LoadingOutlined, UsergroupAddOutlined, UserOutlined, PlusOutlined, FolderAddOutlined } from '@ant-design/icons'
+import { Card, Spin, Button, Empty } from 'antd'
 import { useNavigate } from 'react-router-dom';
 import PaginationFC from './PaginationFC';
 import { useEffect, useState } from 'react';
 import { getUserDecks } from '../../service/deck';
+import NewDeck from '../CardModal/NewDeck';
 
 const CardMyList = () => {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
     const [decks, setDecks] = useState([]);
+    const [showNewDeckModal, setShowNewDeckModal] = useState(false);
     const [pagination, setPagination] = useState({
         currentPage: 1,
         totalPages: 1,
@@ -55,61 +57,81 @@ const CardMyList = () => {
         });
     };
 
-    // Hiển thị thông báo khi không có deck
-    if (!loading && decks.length === 0) {
-        return (
-            <div className="max-w-screen-xl mx-auto p-6">
-                <div className="mb-6">
-                    <h1 className="text-2xl font-bold text-gray-800">Deck của tôi</h1>
-                    <p className="text-gray-600">Quản lý các bộ flashcard cá nhân của bạn</p>
-                </div>
-                <div className="text-center py-12">
-                    <div className="text-gray-500 text-lg mb-4">
-                        Bạn chưa có deck nào
-                    </div>
-                    <button
-                        onClick={() => navigate('/')}
-                        className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600"
-                    >
-                        Khám phá deck có sẵn
-                    </button>
-                </div>
-            </div>
-        );
-    }
+    const handleDeckCreated = (newDeck) => {
+        // Refresh the deck list
+        loadUserDecks(1);
+    };
 
     return (
         <div className="max-w-screen-xl mx-auto p-6">
-            <div className="mb-6">
-                <h1 className="text-2xl font-bold text-gray-800">Deck của tôi</h1>
-                <p className="text-gray-600">Quản lý các bộ flashcard cá nhân của bạn</p>
+            <div className="mb-6 flex justify-between items-center">
+                <div>
+                    <h1 className="text-2xl font-bold text-gray-800">Deck của tôi</h1>
+                    <p className="text-gray-600">Quản lý các bộ flashcard cá nhân của bạn</p>
+                </div>
+                <Button
+                    type="primary"
+                    size="large"
+                    icon={<PlusOutlined />}
+                    onClick={() => setShowNewDeckModal(true)}
+                    className="bg-blue-500 hover:bg-blue-600 border-blue-500 hover:border-blue-600"
+                >
+                    Tạo deck mới
+                </Button>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {loading ? (
-                    Array.from({ length: PAGE_SIZE }, (_, index) => (
+            {loading ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    {Array.from({ length: PAGE_SIZE }, (_, index) => (
                         <Card
                             key={index}
                             loading={true}
                             className="shadow-lg bg-slate-100"
                         />
-                    ))
-                ) : (
-                    decks.map((deck) => (
+                    ))}
+                </div>
+            ) : decks.length === 0 ? (
+                <div className="text-center py-12">
+                    <Empty
+                        image={<FolderAddOutlined className="text-6xl text-gray-300 mb-4" />}
+                        imageStyle={{
+                            height: 120,
+                            display: 'flex',
+                            justifyContent: 'center',
+                            alignItems: 'center'
+                        }}
+                        description={
+                            <div className="text-gray-500">
+                                <h3 className="text-lg font-medium mb-2">Chưa có deck nào</h3>
+                                <p className="text-sm mb-4">Hãy tạo deck đầu tiên để bắt đầu học tập!</p>
+                            </div>
+                        }
+                    >
+                        <Button
+                            type="primary"
+                            size="large"
+                            icon={<PlusOutlined />}
+                            onClick={() => setShowNewDeckModal(true)}
+                            className="bg-blue-500 hover:bg-blue-600 border-blue-500 hover:border-blue-600"
+                        >
+                            Tạo deck đầu tiên
+                        </Button>
+                    </Empty>
+                </div>
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    {decks.map((deck) => (
                         <Card
                             loading={loading}
                             key={deck._id}
                             onClick={() => handleCardClick(deck._id)}
                             className="shadow-lg bg-slate-100
-                    cursor-pointer transition-all duration-300 hover:shadow-lg hover:scale-105"
+                        cursor-pointer transition-all duration-300 hover:shadow-lg hover:scale-105"
                             cover={
                                 <div className="h-32 overflow-hidden">
                                     <img
                                         alt={deck.name}
                                         src={deck.url || "https://gw.alipayobjects.com/zos/rmsportal/JiqGstEfoWAOHiTxclqi.png"}
                                         className="w-full h-full object-cover"
-                                        onError={(e) => {
-                                            e.target.src = "https://gw.alipayobjects.com/zos/rmsportal/JiqGstEfoWAOHiTxclqi.png";
-                                        }}
                                     />
                                 </div>
                             }
@@ -124,21 +146,19 @@ const CardMyList = () => {
                                 <div className="text-gray-500 font-medium flex">
                                     <div>
                                         <FileTextOutlined />
-                                        {deck.size} từ
+                                        <span className="ml-1">{deck.size} từ</span>
                                     </div>
                                     <div className='mx-2'>|</div>
                                     <div>
                                         <UserOutlined />
-                                        Private
+                                        <span className="ml-1">Private</span>
                                     </div>
                                 </div>
                             </div>
                         </Card>
-
-                    ))
-
-                )}
-            </div>
+                    ))}
+                </div>
+            )}
             {!loading && pagination.totalPages > 1 && (
                 <PaginationFC
                     current={pagination.currentPage}
@@ -147,6 +167,13 @@ const CardMyList = () => {
                     onChange={handlePageChange}
                 />
             )}
+
+            {/* New Deck Modal */}
+            <NewDeck
+                open={showNewDeckModal}
+                onClose={() => setShowNewDeckModal(false)}
+                onSuccess={handleDeckCreated}
+            />
         </div>
     )
 }

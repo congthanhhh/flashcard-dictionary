@@ -34,15 +34,6 @@ export const getDefaultDeckCards = async (deckId, page = 1, limit = 20) => {
     }
 };
 
-// Clone default deck to personal deck (cần auth)
-export const cloneDefaultDeck = async (deckId) => {
-    try {
-        const response = await apiClient.post(`api/default-decks/${deckId}/cards`);
-        return response.data;
-    } catch (error) {
-        throw error.response?.data || error.message;
-    }
-};
 
 // ===== USER PERSONAL DECKS =====
 
@@ -104,6 +95,18 @@ export const updateUserDeck = async (deckId, deckData) => {
 export const deleteUserDeck = async (deckId) => {
     try {
         const response = await apiClient.delete(`api/decks/${deckId}`);
+        return response.data;
+    } catch (error) {
+        throw error.response?.data || error.message;
+    }
+};
+
+// Add default card(s) to personal deck (cần auth)
+export const addDefaultCardToPersonalDeck = async (personalDeckId, defaultCardIds) => {
+    try {
+        const response = await apiClient.post(`api/decks/${personalDeckId}/cards/from-default`, {
+            defaultCardId: defaultCardIds
+        });
         return response.data;
     } catch (error) {
         throw error.response?.data || error.message;

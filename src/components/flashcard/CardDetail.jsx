@@ -1,8 +1,11 @@
 import React, { useEffect, useState } from 'react'
-import { Card, Button } from 'antd'
-import { SoundOutlined, SwapOutlined } from '@ant-design/icons'
+import { Card, Button, Modal, message } from 'antd'
+import { SoundOutlined, SwapOutlined, PlusOutlined, EditOutlined, DeleteOutlined, ExclamationCircleOutlined } from '@ant-design/icons'
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import PaginationFC from './PaginationFC';
+import NewCardSimple from '../CardModal/NewCardSimple';
+import AddToMyListModal from '../CardModal/AddToMyListModal';
+import { deleteCard } from '../../service/card';
 import {
     getDefaultDeckCards,
     getDefaultDeckId,
@@ -17,7 +20,15 @@ const CardDetail = () => {
     const [loading, setLoading] = useState(true);
     const [deck, setDeck] = useState(null);
     const [cards, setCards] = useState([]);
-    // Khởi tạo isUserDeck ngay từ đầu dựa trên location state
+    const [showNewCardModal, setShowNewCardModal] = useState(false);
+    const [showEditCardModal, setShowEditCardModal] = useState(false);
+    const [editingCard, setEditingCard] = useState(null);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [deletingCard, setDeletingCard] = useState(null);
+    const [deleteLoading, setDeleteLoading] = useState(false);
+    const [showAddToMyListModal, setShowAddToMyListModal] = useState(false);
+    const [selectedCard, setSelectedCard] = useState(null);
+
     const [isUserDeck, setIsUserDeck] = useState(location.state?.isUserDeck || false);
     const [pagination, setPagination] = useState({
         currentPage: 1,
@@ -93,15 +104,83 @@ const CardDetail = () => {
         loadCards(page);
     };
 
+    const handleCardCreated = (newCard) => {
+        // Refresh the cards list
+        loadCards(1);
+    };
+
+    const handleEditCard = (card) => {
+        setEditingCard(card);
+        setShowEditCardModal(true);
+    };
+
+    const handleCardUpdated = (updatedCard) => {
+        // Refresh the cards list
+        loadCards(pagination.currentPage);
+        setEditingCard(null);
+    };
+
+    const handleDeleteCard = (card) => {
+        setDeletingCard(card);
+        setShowDeleteModal(true);
+    };
+
+    const confirmDeleteCard = async () => {
+        if (!deletingCard) return;
+
+        try {
+            setDeleteLoading(true);
+            await deleteCard(deletingCard._id);
+            message.success('Xóa thẻ thành công!');
+
+            // Refresh cards list
+            const currentPageCards = cards.length;
+            if (currentPageCards === 1 && pagination.currentPage > 1) {
+                loadCards(pagination.currentPage - 1);
+            } else {
+                loadCards(pagination.currentPage);
+            }
+
+            setShowDeleteModal(false);
+            setDeletingCard(null);
+        } catch (error) {
+            console.error('Error deleting card:', error);
+            message.error(error.message || 'Không thể xóa thẻ');
+        } finally {
+            setDeleteLoading(false);
+        }
+    };
+
+    const cancelDeleteCard = () => {
+        setShowDeleteModal(false);
+        setDeletingCard(null);
+    };
+
+    const handleAddToMyList = (card) => {
+        setSelectedCard(card);
+        setShowAddToMyListModal(true);
+    };
+
     return (
         <div className="max-w-screen-xl mx-auto p-6">
             <div className="max-w-4xl mx-auto">
                 <div className='text-2xl font-bold p-2 uppercase flex items-center gap-3'>
                     Flashcards: {deck?.name}
                     {isUserDeck && (
-                        <span className="text-sm bg-blue-500 text-white px-2 py-1 rounded normal-case">
-                            Deck cá nhân
-                        </span>
+                        <div className="flex items-center gap-2">
+                            <span className="text-sm bg-blue-500 text-white px-2 py-1 rounded normal-case">
+                                Deck cá nhân
+                            </span>
+                            <Button
+                                type="primary"
+                                size="small"
+                                icon={<PlusOutlined />}
+                                onClick={() => setShowNewCardModal(true)}
+                                className="bg-green-500 hover:bg-green-600 border-green-500 hover:border-green-600 normal-case"
+                            >
+                                Thêm thẻ
+                            </Button>
+                        </div>
                     )}
                     {!isUserDeck && (
                         <span className="text-sm bg-green-500 text-white px-2 py-1 rounded normal-case">
@@ -168,16 +247,19 @@ const CardDetail = () => {
                             <div className="flex flex-col lg:flex-row">
                                 <div className="flex-1">
                                     <div className="mb-3">
-                                        <div className="flex items-center gap-3 mb-1">
-                                            <h1 className="text-3xl font-bold text-gray-800">{card.name}</h1>
-                                            <span className="text-gray-600 text-lg">({card.word_type})</span>
-                                            {/* <span className="text-blue-600 text-lg font-mono">/ ˈæbsənt/</span> */}
-                                            {/* <Button
-                                            type="text"
-                                            icon={<SoundOutlined />}
-                                            className="text-blue-500 hover:bg-blue-50"
-                                            size="small"
-                                        /> */}
+                                        <div className="flex items-center justify-between mb-1">
+                                            <div className="flex items-center gap-3">
+                                                <h1 className="text-3xl font-bold text-gray-800">{card.name}</h1>
+                                                <span className="text-gray-600 text-lg">({card.word_type})</span>
+                                                {/* <span className="text-blue-600 text-lg font-mono">/ ˈæbsənt/</span> */}
+                                                <Button
+                                                    type="text"
+                                                    icon={<SoundOutlined />}
+                                                    className="text-blue-500 hover:bg-blue-50"
+                                                    size="small"
+                                                />
+                                            </div>
+
                                         </div>
                                     </div>
                                     <div className="mb-4">
@@ -206,6 +288,7 @@ const CardDetail = () => {
                                                 </p>
                                             )}
                                         </div>
+
                                     </div>
                                 </div>
 
@@ -215,11 +298,40 @@ const CardDetail = () => {
                                             src={card.url || "https://gw.alipayobjects.com/zos/rmsportal/JiqGstEfoWAOHiTxclqi.png"}
                                             alt={card.name || "Card image"}
                                             className="w-full h-full object-cover"
-                                            onError={(e) => {
-                                                e.target.src = "https://gw.alipayobjects.com/zos/rmsportal/JiqGstEfoWAOHiTxclqi.png";
-                                            }}
                                         />
                                     </div>
+                                    {isUserDeck ? (
+                                        <div className="flex justify-end">
+                                            <Button
+                                                type="text"
+                                                icon={<EditOutlined />}
+                                                onClick={() => handleEditCard(card)}
+                                                className="text-blue-500 hover:bg-blue-50"
+                                                size="large"
+                                                title="Chỉnh sửa thẻ"
+                                            />
+                                            <Button
+                                                type="text"
+                                                icon={<DeleteOutlined />}
+                                                onClick={() => handleDeleteCard(card)}
+                                                className="text-red-500 hover:bg-red-50"
+                                                size="large"
+                                                title="Xóa thẻ"
+                                            />
+
+                                        </div>
+                                    ) : (
+                                        <div className="flex justify-end mt-4">
+                                            <Button
+                                                variant='filled'
+                                                icon={<PlusOutlined />}
+                                                onClick={() => handleAddToMyList(card)}
+                                                className="text-blue-500 hover:bg-blue-600"
+                                                size="large"
+                                            > List
+                                            </Button>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </Card>
@@ -235,6 +347,86 @@ const CardDetail = () => {
                     />
                 )}
             </div>
+
+            {/* New Card Modal */}
+            <NewCardSimple
+                open={showNewCardModal}
+                onClose={() => setShowNewCardModal(false)}
+                onSuccess={handleCardCreated}
+                deckId={deckId}
+            />
+
+            {/* Edit Card Modal */}
+            <NewCardSimple
+                open={showEditCardModal}
+                onClose={() => {
+                    setShowEditCardModal(false);
+                    setEditingCard(null);
+                }}
+                onSuccess={handleCardUpdated}
+                deckId={deckId}
+                editCard={editingCard}
+            />
+
+            {/* Delete Confirmation Modal */}
+            <Modal
+                title={
+                    <div className="flex items-center gap-2 text-lg">
+                        <ExclamationCircleOutlined className="text-red-500" />
+                        <span>Xác nhận xóa thẻ</span>
+                    </div>
+                }
+                open={showDeleteModal}
+                onCancel={cancelDeleteCard}
+                footer={[
+                    <Button key="cancel" onClick={cancelDeleteCard}>
+                        Hủy
+                    </Button>,
+                    <Button
+                        key="delete"
+                        type="primary"
+                        danger
+                        loading={deleteLoading}
+                        onClick={confirmDeleteCard}
+                    >
+                        {deleteLoading ? 'Đang xóa...' : 'Xóa'}
+                    </Button>
+                ]}
+                centered
+                width={500}
+            >
+                {deletingCard && (
+                    <div>
+                        <p className="mb-3">Bạn có chắc chắn muốn xóa thẻ này không?</p>
+                        <div className="p-4 bg-gray-50 rounded-lg border">
+                            <div className="font-semibold text-gray-800 text-lg mb-2">
+                                {deletingCard.name}
+                                <span className="ml-2 text-gray-600 text-base font-normal">
+                                    ({deletingCard.word_type})
+                                </span>
+                            </div>
+                            <div className="text-gray-600 text-sm">
+                                {deletingCard.definition}
+                            </div>
+                        </div>
+                        <div className="mt-3 flex items-center gap-2 text-red-600 text-sm">
+                            <ExclamationCircleOutlined />
+                            <span>Hành động này không thể hoàn tác!</span>
+                        </div>
+                    </div>
+                )}
+            </Modal>
+
+            {/* Add To My List Modal */}
+            <AddToMyListModal
+                open={showAddToMyListModal}
+                onClose={() => {
+                    setShowAddToMyListModal(false);
+                    setSelectedCard(null);
+                }}
+                defaultCard={selectedCard}
+                defaultDeckId={deckId}
+            />
         </div>
     )
 }
