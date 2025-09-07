@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { Card, Button, Progress, message, Spin } from 'antd';
+import { Card, Button, Progress, Spin } from 'antd';
 import {
   LeftOutlined,
   RightOutlined,
@@ -22,8 +22,13 @@ import {
   getDefaultDeckCards,
   getDefaultDeckId,
   getUserDeckCards,
-  getUserDeckById
+  getUserDeckById,
+  createUserDeckReviewSession,
+  createDefaultDeckReviewSession,
+  addDefaultCardToPersonalDeck
 } from '../../service/deck';
+import { submitCardReview } from '../../service/card';
+import AddToMyListModal from '../CardModal/AddToMyListModal';
 
 export default function FlashCard() {
   const { deckId } = useParams();
@@ -34,16 +39,18 @@ export default function FlashCard() {
   const [flashcards, setFlashcards] = useState([]);
   const [loading, setLoading] = useState(true);
   const [deck, setDeck] = useState(null);
-  // Khởi tạo isUserDeck ngay từ đầu dựa trên location state
   const [isUserDeck, setIsUserDeck] = useState(() => {
-    console.log('FlashCard - Initialize with location state:', location.state);
     return location.state?.isUserDeck || false;
   });
   const swiperRef = useRef(null);
-  const [messageApi, contextHolder] = message.useMessage();
-  const [cardRatings, setCardRatings] = useState({}); // Track difficulty for each card
-  const [favoriteCards, setFavoriteCards] = useState(new Set()); // Track favorite cards
-  const [showHint, setShowHint] = useState({}); // Track hint visibility for each card
+  const [cardRatings, setCardRatings] = useState({});
+  const [favoriteCards, setFavoriteCards] = useState(new Set());
+  const [showHint, setShowHint] = useState({});
+  const [mode, setMode] = useState('all');
+  const [isSmartMode, setIsSmartMode] = useState(false);
+  const [reviewedCards, setReviewedCards] = useState(new Set());
+  const [showAddToMyListModal, setShowAddToMyListModal] = useState(false);
+  const [selectedCard, setSelectedCard] = useState(null);
 
   const toggleHint = (cardId) => {
     setShowHint(prev => ({
@@ -52,10 +59,10 @@ export default function FlashCard() {
     }));
   };
 
-  // Load data khi có deckId
   useEffect(() => {
-    // Detect deck type từ location state hoặc referrer khi component mount
     let detectedIsUserDeck = false;
+    let detectedMode = 'all';
+
     if (location.state?.isUserDeck !== undefined) {
       detectedIsUserDeck = location.state.isUserDeck;
     } else {
@@ -63,21 +70,44 @@ export default function FlashCard() {
       detectedIsUserDeck = referrer.includes('/my-list');
     }
 
-    console.log('FlashCard - Detected isUserDeck:', detectedIsUserDeck, 'deckId:', deckId);
+    if (location.state?.mode) {
+      detectedMode = location.state.mode;
+    }
+
     setIsUserDeck(detectedIsUserDeck);
+    setMode(detectedMode);
+    setIsSmartMode(detectedMode === 'smart');
 
     if (deckId) {
-      // Delay để đảm bảo isUserDeck đã được set
       setTimeout(() => {
-        loadFlashcards(detectedIsUserDeck);
+        if (detectedMode === 'smart') {
+          createSmartSession(detectedIsUserDeck, location.state?.sessionConfig);
+        } else {
+          loadAllCards(detectedIsUserDeck);
+        }
         loadDeckInfo(detectedIsUserDeck);
       }, 0);
     }
-  }, [deckId, location.state]); // Dependencies
+  }, [deckId, location.state]);
+
+  useEffect(() => {
+    if (isSmartMode && isUserDeck && flashcards.length > 0 && reviewedCards.size === flashcards.length) {
+      setTimeout(() => {
+        const easyCount = Object.values(cardRatings).filter(r => r === 'easy').length;
+        const mediumCount = Object.values(cardRatings).filter(r => r === 'medium').length;
+        const hardCount = Object.values(cardRatings).filter(r => r === 'hard').length;
+      }, 1000);
+    } else if (isSmartMode && !isUserDeck && flashcards.length > 0 && Object.keys(cardRatings).length === flashcards.length) {
+      setTimeout(() => {
+        const easyCount = Object.values(cardRatings).filter(r => r === 'easy').length;
+        const mediumCount = Object.values(cardRatings).filter(r => r === 'medium').length;
+        const hardCount = Object.values(cardRatings).filter(r => r === 'hard').length;
+      }, 1000);
+    }
+  }, [reviewedCards.size, flashcards.length, isSmartMode, cardRatings, isUserDeck]);
 
   const loadDeckInfo = async (userDeck = isUserDeck) => {
     try {
-      console.log('Loading deck info - userDeck:', userDeck, 'deckId:', deckId);
       let deckInfo;
       if (userDeck) {
         deckInfo = await getUserDeckById(deckId);
@@ -87,14 +117,12 @@ export default function FlashCard() {
       setDeck(deckInfo);
     } catch (error) {
       console.error('Error loading deck info:', error);
-      messageApi.error('Không thể tải thông tin deck');
     }
   };
 
-  const loadFlashcards = async (userDeck = isUserDeck) => {
+  const loadAllCards = async (userDeck = isUserDeck) => {
     try {
       setLoading(true);
-      console.log('Loading flashcards - userDeck:', userDeck, 'deckId:', deckId);
 
       let response;
       if (userDeck) {
@@ -103,7 +131,6 @@ export default function FlashCard() {
         response = await getDefaultDeckCards(deckId, 1, 1000);
       }
 
-      // Convert API data to flashcard format
       const cards = (response.cards || []).map(card => {
         return {
           id: card._id,
@@ -119,12 +146,47 @@ export default function FlashCard() {
       });
 
       setFlashcards(cards);
-      const deckType = userDeck ? 'cá nhân' : 'mặc định';
-      messageApi.success(`Đã load ${cards.length} từ từ deck ${deckType} để luyện tập`);
 
     } catch (error) {
       console.error('Error loading flashcards:', error);
-      messageApi.error('Không thể tải flashcards');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const createSmartSession = async (userDeck = isUserDeck, customSessionConfig = null) => {
+    try {
+      setLoading(true);
+
+      const sessionConfig = customSessionConfig || {
+        flashcard: 20
+      };
+
+      let response;
+      if (userDeck) {
+        response = await createUserDeckReviewSession(deckId, sessionConfig);
+      } else {
+        response = await createDefaultDeckReviewSession(deckId, sessionConfig);
+      }
+
+      const cards = (response.flashcard || []).map(card => {
+        return {
+          id: card._id,
+          front: card.name || 'Unknown Word',
+          back: card.definition || 'No Definition',
+          type: card.word_type,
+          example: card.example,
+          phonetic: card.hint,
+          category: card.category,
+          frequency: card.frequency,
+          url: card.url
+        };
+      });
+
+      setFlashcards(cards);
+
+    } catch (error) {
+      console.error('Error creating smart session:', error);
     } finally {
       setLoading(false);
     }
@@ -151,7 +213,7 @@ export default function FlashCard() {
     setFlipped(!flipped);
   };
 
-  const handleDifficultyRating = (cardId, difficulty) => {
+  const handleDifficultyRating = async (cardId, difficulty) => {
     setCardRatings(prev => ({
       ...prev,
       [cardId]: difficulty
@@ -163,30 +225,58 @@ export default function FlashCard() {
       'hard': 'Khó'
     };
 
-    messageApi.success(`Đã đánh giá từ này: ${difficultyText[difficulty]}`);
+    if (isUserDeck && isSmartMode) {
+      try {
+        await submitCardReview(cardId, {
+          retrievalLevel: difficulty,
+          hintWasShown: showHint[cardId] || false
+        });
+        setReviewedCards(prev => new Set([...prev, cardId]));
+      } catch (error) {
+        console.error('Error submitting card review:', error);
+      }
+    }
+
+    setTimeout(() => {
+      if (index < flashcards.length - 1) {
+        handleNext();
+      }
+    }, 500);
   };
 
   const handleAddToFavorites = (cardId, cardText) => {
-    const newFavorites = new Set(favoriteCards);
-    if (newFavorites.has(cardId)) {
-      newFavorites.delete(cardId);
-      messageApi.info(`Đã xóa "${cardText}" khỏi danh sách yêu thích`);
+    if (!isUserDeck) {
+      const currentCard = flashcards.find(card => card.id === cardId);
+      if (currentCard) {
+        setSelectedCard({
+          _id: currentCard.id,
+          name: currentCard.front,
+          definition: currentCard.back,
+          word_type: currentCard.type,
+          example: currentCard.example,
+          hint: currentCard.phonetic,
+          category: currentCard.category,
+          url: currentCard.url
+        });
+        setShowAddToMyListModal(true);
+      }
     } else {
-      newFavorites.add(cardId);
-      messageApi.success(`Đã thêm "${cardText}" vào danh sách yêu thích`);
+      const newFavorites = new Set(favoriteCards);
+      if (newFavorites.has(cardId)) {
+        newFavorites.delete(cardId);
+      } else {
+        newFavorites.add(cardId);
+      }
+      setFavoriteCards(newFavorites);
     }
-    setFavoriteCards(newFavorites);
   };
 
   const handlePlaySound = (text) => {
-    // Text-to-speech cho từ tiếng Anh
     if ('speechSynthesis' in window) {
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = 'en-US';
       utterance.rate = 0.8;
       speechSynthesis.speak(utterance);
-    } else {
-      messageApi.warning('Trình duyệt không hỗ trợ text-to-speech');
     }
   };
 
@@ -217,9 +307,7 @@ export default function FlashCard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-4">
-      {contextHolder}
       <div className="max-w-4xl mx-auto px-4">
-        {/* Header */}
         <div className="mb-4">
           <div className="flex items-center justify-between mb-4">
             <Button
@@ -236,14 +324,29 @@ export default function FlashCard() {
               <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent uppercase mb-2">
                 {deck?.name || 'Flashcards'}
               </h1>
-
+              <div className="flex justify-center mb-2">
+                {isSmartMode ? (
+                  <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-4 py-1 rounded-full text-sm font-medium flex items-center">
+                    🧠 Smart Learning Mode - Lựa chọn thông minh
+                  </div>
+                ) : (
+                  <div className="bg-gradient-to-r from-blue-500 to-cyan-500 text-white px-4 py-1 rounded-full text-sm font-medium flex items-center">
+                    ⚡ Quick Practice Mode - All Cards
+                  </div>
+                )}
+              </div>
             </div>
             <div className="text-right">
-              <div className="bg-white/70 backdrop-blur-sm rounded-lg px-4 py-2 flex items-center">
-                <div className="text-sm mr-2 text-gray-600">Tiến độ</div>
+              <div className="bg-white/70 backdrop-blur-sm rounded-lg px-4 py-2 flex flex-col items-center">
+                <div className="text-sm text-gray-600">Tiến độ</div>
                 <div className="text-xl font-bold text-blue-600">
                   {Math.round(((index + 1) / flashcards.length) * 100)}%
                 </div>
+                {isSmartMode && (
+                  <div className="text-xs text-purple-600 mt-1">
+                    🧠 Đã review: {reviewedCards.size}/{flashcards.length}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -260,7 +363,6 @@ export default function FlashCard() {
           </div>
         </div>
 
-        {/* Flashcard */}
         <div className="mb-2">
           <Swiper
             onSwiper={(swiper) => (swiperRef.current = swiper)}
@@ -278,15 +380,12 @@ export default function FlashCard() {
             {flashcards.map((card) => (
               <SwiperSlide key={card.id} className="flex justify-center items-center">
                 <div style={{ perspective: '1000px' }} className="w-full relative">
-                  {/* Difficulty Rating Badge */}
                   {cardRatings[card.id] && (
                     <div className="absolute -top-4 -right-4 z-30">
                       <div className="relative">
-                        {/* Outer glow effect */}
                         <div className={`absolute inset-0 rounded-full blur-lg scale-110 ${cardRatings[card.id] === 'easy' ? 'bg-green-400/60' :
                           cardRatings[card.id] === 'medium' ? 'bg-yellow-400/60' : 'bg-red-400/60'
                           }`}></div>
-                        {/* Main badge */}
                         <div className={`relative rounded-full p-4 shadow-2xl border-3 border-white transform hover:scale-110 transition-transform duration-200 ${cardRatings[card.id] === 'easy' ? 'bg-gradient-to-br from-green-400 via-green-500 to-green-600' :
                           cardRatings[card.id] === 'medium' ? 'bg-gradient-to-br from-yellow-400 via-yellow-500 to-yellow-600' :
                             'bg-gradient-to-br from-red-400 via-red-500 to-red-600'
@@ -307,9 +406,7 @@ export default function FlashCard() {
                       minHeight: '420px'
                     }}
                   >
-                    {/* Content */}
                     {!flipped ? (
-                      /* Front Side */
                       <div
                         className="absolute inset-0 flex flex-col justify-center items-center text-center p-8"
                         style={{
@@ -317,7 +414,6 @@ export default function FlashCard() {
                           borderRadius: '8px'
                         }}
                       >
-                        {/* Decorative elements */}
                         <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
                           <div className="absolute top-4 left-4 w-16 h-16 bg-white/10 rounded-full blur-xl"></div>
                           <div className="absolute top-12 right-8 w-8 h-8 bg-white/15 rounded-full blur-lg"></div>
@@ -335,13 +431,11 @@ export default function FlashCard() {
                           />
                         </div>
 
-                        {/* Main content */}
                         <div className="relative z-10 flex flex-col items-center">
                           <h2 className="text-6xl font-bold text-white mb-6 drop-shadow-lg tracking-wide">
                             {card.front}
                           </h2>
 
-                          {/* Info below title */}
                           {card.type && (
                             <div className="mb-4">
                               <span className="inline-block text-white/90 text-base font-semibold bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full border border-white/30 shadow-lg">
@@ -374,7 +468,6 @@ export default function FlashCard() {
                           )}
                         </div>
 
-                        {/* Bottom hint */}
                         <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 text-center">
                           <div className="flex flex-col items-center space-y-2">
                             <p className="text-white/80 text-sm select-none pointer-events-none">
@@ -385,7 +478,6 @@ export default function FlashCard() {
                         </div>
                       </div>
                     ) : (
-                      /* Back Side */
                       <div
                         className="absolute inset-0 flex flex-col justify-center items-center text-center p-8"
                         style={{
@@ -393,7 +485,6 @@ export default function FlashCard() {
                           borderRadius: '8px'
                         }}
                       >
-                        {/* Decorative elements */}
                         <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
                           <div className="absolute top-6 right-4 w-20 h-20 bg-white/10 rounded-full blur-2xl"></div>
                           <div className="absolute top-16 left-6 w-10 h-10 bg-white/15 rounded-full blur-lg"></div>
@@ -401,7 +492,6 @@ export default function FlashCard() {
                           <div className="absolute bottom-20 left-4 w-8 h-8 bg-white/20 rounded-full blur-md"></div>
                         </div>
 
-                        {/* Main content */}
                         <div className="relative z-10 flex flex-col items-center max-w-2xl">
                           <h3 className="text-6xl font-semibold text-white mb-8 drop-shadow-lg tracking-wide">
                             {card.back}
@@ -429,7 +519,6 @@ export default function FlashCard() {
                           )}
                         </div>
 
-                        {/* Bottom hint */}
                         <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 text-center">
                           <div className="flex flex-col items-center space-y-2">
                             <p className="text-white/80 text-sm select-none pointer-events-none">
@@ -447,7 +536,6 @@ export default function FlashCard() {
           </Swiper>
         </div>
 
-        {/* Navigation Controls */}
         <div className="flex justify-between items-center mb-4">
           <Button
             icon={<LeftOutlined />}
@@ -478,57 +566,101 @@ export default function FlashCard() {
             Sau
           </Button>
         </div>
-        {/* Controls */}
         <div className="p-4 bg-gray-50 rounded-xl">
+          {isSmartMode && isUserDeck && flashcards[index] && (
+            <div className="text-center mb-4">
+              {reviewedCards.has(flashcards[index].id) ? (
+                <div className="bg-green-100 text-green-700 px-4 py-2 rounded-full text-sm font-medium">
+                  ✅ Đã review - Hệ thống đã ghi nhận
+                </div>
+              ) : (
+                <div className="bg-purple-100 text-purple-700 px-4 py-2 rounded-full text-sm font-medium">
+                  🧠 Đánh giá để hệ thống học hỏi
+                </div>
+              )}
+            </div>
+          )}
+
+          {!isUserDeck && (
+            <div className="text-center mb-4">
+              <div className="bg-blue-100 text-blue-700 px-4 py-2 rounded-full text-sm font-medium">
+                ℹ️ Deck mặc định - Chỉ có thể thêm vào My List
+              </div>
+            </div>
+          )}
+
+          {isUserDeck && !isSmartMode && (
+            <div className="text-center mb-4">
+              <div className="bg-green-100 text-green-700 px-4 py-2 rounded-full text-sm font-medium">
+                📚 Deck cá nhân - Đánh giá để cải thiện việc học
+              </div>
+            </div>
+          )}
+
           <div className="flex justify-center gap-6 ">
+            {isUserDeck && (
+              <>
+                <Button
+                  type={cardRatings[flashcards[index]?.id] === 'easy' ? 'primary' : 'default'}
+                  icon={<SmileOutlined />}
+                  size="large"
+                  onClick={() => handleDifficultyRating(flashcards[index]?.id, 'easy')}
+                  className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white border-0"
+                >
+                  Dễ
+                </Button>
 
-            <Button
-              type={cardRatings[flashcards[index]?.id] === 'easy' ? 'primary' : 'default'}
-              icon={<SmileOutlined />}
-              size="large"
-              onClick={() => handleDifficultyRating(flashcards[index]?.id, 'easy')}
-              className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white border-0"
-            >
-              Dễ
-            </Button>
+                <Button
+                  type={cardRatings[flashcards[index]?.id] === 'medium' ? 'primary' : 'default'}
+                  icon={<MehOutlined />}
+                  size="large"
+                  onClick={() => handleDifficultyRating(flashcards[index]?.id, 'medium')}
+                  className="flex items-center gap-2 bg-yellow-500 hover:bg-yellow-600 text-white border-0"
+                >
+                  Trung bình
+                </Button>
 
+                <Button
+                  type={cardRatings[flashcards[index]?.id] === 'hard' ? 'primary' : 'default'}
+                  icon={<FrownOutlined />}
+                  size="large"
+                  onClick={() => handleDifficultyRating(flashcards[index]?.id, 'hard')}
+                  className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white border-0"
+                >
+                  Khó
+                </Button>
+              </>
+            )}
 
-            <Button
-              type={cardRatings[flashcards[index]?.id] === 'medium' ? 'primary' : 'default'}
-              icon={<MehOutlined />}
-              size="large"
-              onClick={() => handleDifficultyRating(flashcards[index]?.id, 'medium')}
-              className="flex items-center gap-2 bg-yellow-500 hover:bg-yellow-600 text-white border-0"
-            >
-              Trung bình
-            </Button>
-
-
-            <Button
-              type={cardRatings[flashcards[index]?.id] === 'hard' ? 'primary' : 'default'}
-              icon={<FrownOutlined />}
-              size="large"
-              onClick={() => handleDifficultyRating(flashcards[index]?.id, 'hard')}
-              className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white border-0"
-            >
-              Khó
-            </Button>
-
-            <Button
-              type={favoriteCards.has(flashcards[index]?.id) ? 'primary' : 'default'}
-              icon={favoriteCards.has(flashcards[index]?.id) ? <HeartOutlined /> : <PlusOutlined />}
-              size="large"
-              onClick={() => handleAddToFavorites(flashcards[index]?.id)}
-              className={`flex items-center gap-2 ${favoriteCards.has(flashcards[index]?.id)
-                ? 'bg-red-500 hover:bg-red-600 text-white border-0'
-                : 'bg-blue-500 hover:bg-blue-600 text-white border-0'
-                }`}
-            >
-              {favoriteCards.has(flashcards[index]?.id) ? 'Đã thêm vào yêu thích' : 'Thêm vào yêu thích'}
-            </Button>
+            {!isUserDeck && (
+              <Button
+                type={favoriteCards.has(flashcards[index]?.id) ? 'primary' : 'default'}
+                icon={favoriteCards.has(flashcards[index]?.id) ? <HeartOutlined /> : <PlusOutlined />}
+                size="large"
+                onClick={() => handleAddToFavorites(flashcards[index]?.id)}
+                className={`flex items-center gap-2 ${favoriteCards.has(flashcards[index]?.id)
+                  ? 'bg-red-500 hover:bg-red-600 text-white border-0'
+                  : 'bg-blue-500 hover:bg-blue-600 text-white border-0'
+                  }`}
+              >
+                {favoriteCards.has(flashcards[index]?.id) ? 'Đã thêm vào my list' : 'Thêm vào my list'}
+              </Button>
+            )}
           </div>
         </div>
       </div>
+
+      {!isUserDeck && (
+        <AddToMyListModal
+          open={showAddToMyListModal}
+          onClose={() => {
+            setShowAddToMyListModal(false);
+            setSelectedCard(null);
+          }}
+          defaultCard={selectedCard}
+          defaultDeckId={deckId}
+        />
+      )}
     </div>
   );
 }

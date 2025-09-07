@@ -1,8 +1,6 @@
 import apiClient from './config'
 
-// ===== CARD MANAGEMENT =====
 
-// Get single card (cần auth)
 export const getCardById = async (cardId) => {
     try {
         const response = await apiClient.get(`api/cards/${cardId}`);
@@ -12,7 +10,6 @@ export const getCardById = async (cardId) => {
     }
 };
 
-// Add card to deck (cần auth)
 export const addCardToDeck = async (deckId, cardData) => {
     try {
         const response = await apiClient.post(`api/decks/${deckId}/cards`, cardData);
@@ -22,7 +19,6 @@ export const addCardToDeck = async (deckId, cardData) => {
     }
 };
 
-// Update card (cần auth)
 export const updateCard = async (cardId, cardData) => {
     try {
         const response = await apiClient.patch(`api/cards/${cardId}`, cardData);
@@ -32,7 +28,6 @@ export const updateCard = async (cardId, cardData) => {
     }
 };
 
-// Delete card (cần auth)
 export const deleteCard = async (cardId) => {
     try {
         const response = await apiClient.delete(`api/cards/${cardId}`);
@@ -42,7 +37,6 @@ export const deleteCard = async (cardId) => {
     }
 };
 
-// Search cards (cần auth)
 export const searchCards = async (searchParams, page = 1, limit = 20) => {
     try {
         const response = await apiClient.get('api/cards/search', {
@@ -54,7 +48,6 @@ export const searchCards = async (searchParams, page = 1, limit = 20) => {
     }
 };
 
-// Submit card review (cần auth)
 export const submitCardReview = async (cardId, reviewData) => {
     try {
         const response = await apiClient.post(`api/cards/${cardId}/review`, reviewData);

@@ -4,6 +4,7 @@ import SearchResult from '../components/SearchDic/SearchResult';
 import FlashCard from '../components/flashcard/FlashCard';
 import CardDetail from '../components/flashcard/CardDetail';
 import CardMyList from '../components/flashcard/CardMyList';
+import ReviewSession from '../components/flashcard/ReviewSession';
 
 const AppRouter = () => {
     return (
@@ -13,6 +14,7 @@ const AppRouter = () => {
             <Route path="/flashcard/:deckId" element={<FlashCard />} />
             <Route path="/card-detail/:deckId" element={<CardDetail />} />
             <Route path="/my-list" element={<CardMyList />} />
+            <Route path="/review-session/:deckId" element={<ReviewSession />} />
         </Routes>
     )
 }

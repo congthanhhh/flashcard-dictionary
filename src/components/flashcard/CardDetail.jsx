@@ -5,6 +5,7 @@ import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import PaginationFC from './PaginationFC';
 import NewCardSimple from '../CardModal/NewCardSimple';
 import AddToMyListModal from '../CardModal/AddToMyListModal';
+import ReviewSessionModal from '../CardModal/ReviewSessionModal';
 import { deleteCard } from '../../service/card';
 import {
     getDefaultDeckCards,
@@ -28,6 +29,7 @@ const CardDetail = () => {
     const [deleteLoading, setDeleteLoading] = useState(false);
     const [showAddToMyListModal, setShowAddToMyListModal] = useState(false);
     const [selectedCard, setSelectedCard] = useState(null);
+    const [showReviewSessionModal, setShowReviewSessionModal] = useState(false);
 
     const [isUserDeck, setIsUserDeck] = useState(location.state?.isUserDeck || false);
     const [pagination, setPagination] = useState({
@@ -161,6 +163,16 @@ const CardDetail = () => {
         setShowAddToMyListModal(true);
     };
 
+    const handleStartReviewSession = (sessionConfig) => {
+        navigate(`/flashcard/${deckId}`, {
+            state: {
+                isUserDeck,
+                mode: 'smart',
+                sessionConfig
+            }
+        });
+    };
+
     return (
         <div className="max-w-screen-xl mx-auto p-6">
             <div className="max-w-4xl mx-auto">
@@ -189,30 +201,34 @@ const CardDetail = () => {
                     )}
                 </div>
                 <br />
-                <div className='w-full'>
+                <div className='w-full space-y-4'>
+                    {/* Quick Practice - tất cả thẻ */}
                     <Button
                         onClick={() => {
-                            console.log('CardDetail - Navigating to flashcard with isUserDeck:', isUserDeck);
                             navigate(`/flashcard/${deckId}`, {
                                 state: {
                                     isUserDeck: isUserDeck,
-                                    debug: true
+                                    mode: 'all'
                                 }
                             });
                         }}
-                        color='primary'
-                        variant='filled'
                         size='large'
-                        className='w-full font-semibold'
+                        className='w-full font-semibold border-2 border-gray-300 hover:border-blue-400'
                     >
-                        Luyện tập flashcards (tất cả) - {isUserDeck ? 'User Deck' : 'Default Deck'}
+                        🔄 Luyện tập nhanh (tất cả {deck?.size} thẻ)
+                    </Button>
+
+                    {/* Review Session - đa dạng hóa */}
+                    <Button
+                        onClick={() => setShowReviewSessionModal(true)}
+                        type="primary"
+                        size='large'
+                        className='w-full font-semibold bg-green-500 hover:bg-green-600 border-green-500'
+                    >
+                        🎯 Tạo phiên luyện tập tùy chỉnh (Flashcard)
                     </Button>
                 </div>
                 <br />
-                <Button color='blue' variant='link' size='large' className='font-semibold'>
-                    <SwapOutlined />
-                    <p>Xem ngẫu nhiên 20 từ</p>
-                </Button>
                 <p className='text-lg font-medium p-2'>
                     List có {deck?.size} từ {pagination.totalCards > 0 && `(Hiển thị ${pagination.totalCards} thẻ)`}
                 </p>
@@ -417,7 +433,7 @@ const CardDetail = () => {
                 )}
             </Modal>
 
-            {/* Add To My List Modal */}
+
             <AddToMyListModal
                 open={showAddToMyListModal}
                 onClose={() => {
@@ -426,6 +442,15 @@ const CardDetail = () => {
                 }}
                 defaultCard={selectedCard}
                 defaultDeckId={deckId}
+            />
+
+            <ReviewSessionModal
+                open={showReviewSessionModal}
+                onClose={() => setShowReviewSessionModal(false)}
+                onStartSession={handleStartReviewSession}
+                deckName={deck?.name}
+                deckSize={deck?.size || 0}
+                isUserDeck={isUserDeck}
             />
         </div>
     )
