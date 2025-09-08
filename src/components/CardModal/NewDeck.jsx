@@ -1,36 +1,81 @@
-import React, { useState } from 'react';
-import { Modal, Form, Input, Button, message } from 'antd';
-import { createUserDeck } from '../../service/deck';
+import React, { useState, useEffect } from 'react';
+import { Modal, Form, Input, Button, message, Upload } from 'antd';
+import { UploadOutlined, DeleteOutlined } from '@ant-design/icons';
+import { createUserDeck, updateUserDeck } from '../../service/deck';
+import { uploadImage } from '../../service/card';
 
 const { TextArea } = Input;
 
-const NewDeck = ({ open, onClose, onSuccess }) => {
+const NewDeck = ({ open, onClose, onSuccess, editDeck = null }) => {
     const [form] = Form.useForm();
     const [loading, setLoading] = useState(false);
+    const [imageUploading, setImageUploading] = useState(false);
+    const [imageUrl, setImageUrl] = useState('');
+
+    const isEditMode = !!editDeck;
+
+    useEffect(() => {
+        if (isEditMode && editDeck && open) {
+            form.setFieldsValue({
+                name: editDeck.name,
+                description: editDeck.description
+            });
+            setImageUrl(editDeck.url || '');
+        } else if (!isEditMode && open) {
+            form.resetFields();
+            setImageUrl('');
+        }
+    }, [editDeck, isEditMode, open, form]);
 
     const handleSubmit = async (values) => {
         try {
             setLoading(true);
             const deckData = {
                 name: values.name,
-                description: values.description
+                description: values.description,
+                url: imageUrl || ''
             };
 
-            const newDeck = await createUserDeck(deckData);
-            message.success('Tạo deck thành công!');
+            let result;
+            if (isEditMode) {
+                result = await updateUserDeck(editDeck._id, deckData);
+                message.success('Cập nhật deck thành công!');
+            } else {
+                result = await createUserDeck(deckData);
+                message.success('Tạo deck thành công!');
+            }
+
             form.resetFields();
-            onSuccess?.(newDeck);
+            setImageUrl('');
+            onSuccess?.(result);
             onClose();
         } catch (error) {
-            console.error('Error creating deck:', error);
-            message.error(error.message || 'Không thể tạo deck');
+            message.error(error.message || 'Không thể lưu deck');
         } finally {
             setLoading(false);
         }
     };
 
+    const handleImageUpload = async (file) => {
+        try {
+            setImageUploading(true);
+            const result = await uploadImage(file);
+            setImageUrl(result.filePath);
+            message.success('Upload ảnh thành công!');
+        } catch (error) {
+            message.error('Upload ảnh thất bại!');
+        } finally {
+            setImageUploading(false);
+        }
+    };
+
+    const handleRemoveImage = () => {
+        setImageUrl('');
+    };
+
     const handleCancel = () => {
         form.resetFields();
+        setImageUrl('');
         onClose();
     };
 
@@ -38,7 +83,7 @@ const NewDeck = ({ open, onClose, onSuccess }) => {
         <Modal
             title={
                 <div className="flex items-center gap-2 text-xl font-bold text-gray-800">
-                    Tạo Deck Mới
+                    {isEditMode ? 'Chỉnh sửa Deck' : 'Tạo Deck Mới'}
                 </div>
             }
             open={open}
@@ -54,7 +99,6 @@ const NewDeck = ({ open, onClose, onSuccess }) => {
                     onFinish={handleSubmit}
                     className="space-y-4"
                 >
-                    {/* Deck Name */}
                     <Form.Item
                         label={<span className="text-sm font-semibold text-gray-700">Tên Deck</span>}
                         name="name"
@@ -71,7 +115,6 @@ const NewDeck = ({ open, onClose, onSuccess }) => {
                         />
                     </Form.Item>
 
-                    {/* Description */}
                     <Form.Item
                         label={<span className="text-sm font-semibold text-gray-700">Mô tả</span>}
                         name="description"
@@ -90,7 +133,63 @@ const NewDeck = ({ open, onClose, onSuccess }) => {
                         />
                     </Form.Item>
 
-                    {/* Action Buttons */}
+                    <Form.Item
+                        label={<span className="text-sm font-semibold text-gray-700">Hình ảnh Deck</span>}
+                    >
+                        <div className="space-y-3">
+                            {imageUrl && (
+                                <div className="relative inline-block">
+                                    <img
+                                        src={imageUrl}
+                                        alt="Deck preview"
+                                        className="w-full h-40 object-cover rounded-lg border border-gray-300"
+                                    />
+                                    <Button
+                                        type="text"
+                                        icon={<DeleteOutlined />}
+                                        onClick={handleRemoveImage}
+                                        className="absolute top-2 right-2 bg-red-500 text-white hover:bg-red-600 rounded-full"
+                                        size="small"
+                                        title="Xóa ảnh"
+                                    />
+                                </div>
+                            )}
+
+                            <Upload
+                                accept="image/*"
+                                showUploadList={false}
+                                beforeUpload={(file) => {
+                                    if (file.size > 5 * 1024 * 1024) {
+                                        message.error('Kích thước file không được vượt quá 5MB!');
+                                        return false;
+                                    }
+
+                                    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+                                    if (!validTypes.includes(file.type)) {
+                                        message.error('Chỉ hỗ trợ file JPG, PNG, GIF!');
+                                        return false;
+                                    }
+
+                                    handleImageUpload(file);
+                                    return false;
+                                }}
+                            >
+                                <Button
+                                    icon={<UploadOutlined />}
+                                    loading={imageUploading}
+                                    className="w-full h-12 border-dashed border-gray-300 hover:border-blue-400"
+                                    size="large"
+                                >
+                                    {imageUploading ? 'Đang upload...' : (imageUrl ? 'Thay đổi ảnh' : 'Chọn ảnh cho deck')}
+                                </Button>
+                            </Upload>
+
+                            <p className="text-xs text-gray-500 text-center">
+                                Hỗ trợ JPG, PNG, GIF. Tối đa 5MB.
+                            </p>
+                        </div>
+                    </Form.Item>
+
                     <div className="flex gap-3 pt-4 border-t border-gray-200">
                         <Button
                             onClick={handleCancel}
@@ -106,7 +205,7 @@ const NewDeck = ({ open, onClose, onSuccess }) => {
                             className="flex-1 h-12 bg-blue-500 hover:bg-blue-600 border-blue-500 hover:border-blue-600"
                             size="large"
                         >
-                            {loading ? 'Đang tạo...' : 'Tạo Deck'}
+                            {loading ? (isEditMode ? 'Đang cập nhật...' : 'Đang tạo...') : (isEditMode ? 'Cập nhật Deck' : 'Tạo Deck')}
                         </Button>
                     </div>
                 </Form>

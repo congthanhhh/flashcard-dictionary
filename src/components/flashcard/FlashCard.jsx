@@ -90,22 +90,6 @@ export default function FlashCard() {
     }
   }, [deckId, location.state]);
 
-  useEffect(() => {
-    if (isSmartMode && isUserDeck && flashcards.length > 0 && reviewedCards.size === flashcards.length) {
-      setTimeout(() => {
-        const easyCount = Object.values(cardRatings).filter(r => r === 'easy').length;
-        const mediumCount = Object.values(cardRatings).filter(r => r === 'medium').length;
-        const hardCount = Object.values(cardRatings).filter(r => r === 'hard').length;
-      }, 1000);
-    } else if (isSmartMode && !isUserDeck && flashcards.length > 0 && Object.keys(cardRatings).length === flashcards.length) {
-      setTimeout(() => {
-        const easyCount = Object.values(cardRatings).filter(r => r === 'easy').length;
-        const mediumCount = Object.values(cardRatings).filter(r => r === 'medium').length;
-        const hardCount = Object.values(cardRatings).filter(r => r === 'hard').length;
-      }, 1000);
-    }
-  }, [reviewedCards.size, flashcards.length, isSmartMode, cardRatings, isUserDeck]);
-
   const loadDeckInfo = async (userDeck = isUserDeck) => {
     try {
       let deckInfo;

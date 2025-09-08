@@ -57,3 +57,20 @@ export const submitCardReview = async (cardId, reviewData) => {
     }
 };
 
+export const uploadImage = async (imageFile) => {
+    try {
+        const formData = new FormData();
+        formData.append('image', imageFile);
+
+        const response = await apiClient.post('api/upload', formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+        });
+
+        return response.data;
+    } catch (error) {
+        throw error.response?.data || error.message;
+    }
+};
+

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Form, Input, Button, message, Select } from 'antd';
-import { PlusOutlined, SoundOutlined, EditOutlined } from '@ant-design/icons';
-import { addCardToDeck, updateCard } from '../../service/card';
+import { Modal, Form, Input, Button, message, Select, Upload } from 'antd';
+import { PlusOutlined, SoundOutlined, EditOutlined, UploadOutlined, DeleteOutlined } from '@ant-design/icons';
+import { addCardToDeck, updateCard, uploadImage } from '../../service/card';
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -11,10 +11,11 @@ const NewCardSimple = ({ open, onClose, onSuccess, deckId, editCard = null }) =>
     const [loading, setLoading] = useState(false);
     const [categories, setCategories] = useState([]);
     const [examples, setExamples] = useState(['']);
+    const [imageUploading, setImageUploading] = useState(false);
+    const [imageUrl, setImageUrl] = useState('');
 
     const isEditMode = !!editCard;
 
-    // Predefined categories theo API doc
     const predefinedCategories = [
         'noun', 'verb', 'adjective', 'adverb', 'preposition',
         'work', 'education', 'technology', 'travel', 'food',
@@ -22,7 +23,6 @@ const NewCardSimple = ({ open, onClose, onSuccess, deckId, editCard = null }) =>
         'business', 'science', 'art', 'music', 'politics'
     ];
 
-    // Load data when editing
     useEffect(() => {
         if (isEditMode && editCard) {
             form.setFieldsValue({
@@ -30,14 +30,16 @@ const NewCardSimple = ({ open, onClose, onSuccess, deckId, editCard = null }) =>
                 definition: editCard.definition,
                 word_type: editCard.word_type,
                 hint: editCard.hint,
+                url: editCard.url || '',
             });
             setCategories(editCard.category || []);
             setExamples(editCard.example?.length > 0 ? editCard.example : ['']);
+            setImageUrl(editCard.url || '');
         } else {
-            // Reset form khi không edit
             form.resetFields();
             setCategories([]);
             setExamples(['']);
+            setImageUrl('');
         }
     }, [editCard, isEditMode, form]);
 
@@ -45,14 +47,14 @@ const NewCardSimple = ({ open, onClose, onSuccess, deckId, editCard = null }) =>
         try {
             setLoading(true);
 
-            // Chỉ gửi các field có trong API doc
             const cardData = {
                 name: values.name,
                 definition: values.definition,
                 word_type: values.word_type || '',
                 hint: values.hint || '',
                 category: categories,
-                example: examples.filter(ex => ex.trim() !== '')
+                example: examples.filter(ex => ex.trim() !== ''),
+                url: imageUrl || ''
             };
 
             let result;
@@ -64,19 +66,43 @@ const NewCardSimple = ({ open, onClose, onSuccess, deckId, editCard = null }) =>
                 message.success('Thêm thẻ thành công!');
             }
 
-            // Reset form
             form.resetFields();
             setCategories([]);
             setExamples(['']);
+            setImageUrl('');
 
             onSuccess?.(result);
             onClose();
         } catch (error) {
-            console.error('Error saving card:', error);
             message.error(error.message || (isEditMode ? 'Không thể cập nhật thẻ' : 'Không thể thêm thẻ'));
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleImageUpload = async (file) => {
+        try {
+            setImageUploading(true);
+            const result = await uploadImage(file);
+            setImageUrl(result.filePath);
+
+            form.setFieldsValue({
+                url: result.filePath
+            });
+
+            message.success('Upload ảnh thành công!');
+        } catch (error) {
+            message.error('Upload ảnh thất bại!');
+        } finally {
+            setImageUploading(false);
+        }
+    };
+
+    const handleRemoveImage = () => {
+        setImageUrl('');
+        form.setFieldsValue({
+            url: ''
+        });
     };
 
     const handleAddExample = () => {
@@ -110,6 +136,7 @@ const NewCardSimple = ({ open, onClose, onSuccess, deckId, editCard = null }) =>
         form.resetFields();
         setCategories([]);
         setExamples(['']);
+        setImageUrl('');
         onClose();
     };
 
@@ -139,9 +166,7 @@ const NewCardSimple = ({ open, onClose, onSuccess, deckId, editCard = null }) =>
                     className="space-y-4"
                 >
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {/* Left Column */}
                         <div className="space-y-4">
-                            {/* Word/Term */}
                             <Form.Item
                                 label={
                                     <div className="flex items-center gap-2">
@@ -169,7 +194,6 @@ const NewCardSimple = ({ open, onClose, onSuccess, deckId, editCard = null }) =>
                                 />
                             </Form.Item>
 
-                            {/* Definition */}
                             <Form.Item
                                 label={<span className="text-sm font-semibold text-gray-700">Định nghĩa</span>}
                                 name="definition"
@@ -188,7 +212,6 @@ const NewCardSimple = ({ open, onClose, onSuccess, deckId, editCard = null }) =>
                                 />
                             </Form.Item>
 
-                            {/* Word Type */}
                             <Form.Item
                                 label={<span className="text-sm font-semibold text-gray-700">Loại từ</span>}
                                 name="word_type"
@@ -210,7 +233,6 @@ const NewCardSimple = ({ open, onClose, onSuccess, deckId, editCard = null }) =>
                                 </Select>
                             </Form.Item>
 
-                            {/* Hint */}
                             <Form.Item
                                 label={<span className="text-sm font-semibold text-gray-700">Gợi ý</span>}
                                 name="hint"
@@ -223,9 +245,7 @@ const NewCardSimple = ({ open, onClose, onSuccess, deckId, editCard = null }) =>
                             </Form.Item>
                         </div>
 
-                        {/* Right Column */}
                         <div className="space-y-4">
-                            {/* Categories */}
                             <Form.Item
                                 label={<span className="text-sm font-semibold text-gray-700">Danh mục</span>}
                             >
@@ -244,7 +264,6 @@ const NewCardSimple = ({ open, onClose, onSuccess, deckId, editCard = null }) =>
                                 </Select>
                             </Form.Item>
 
-                            {/* Examples Section */}
                             <div>
                                 <div className="flex items-center justify-between mb-3">
                                     <span className="text-sm font-semibold text-gray-700">Ví dụ</span>
@@ -279,10 +298,77 @@ const NewCardSimple = ({ open, onClose, onSuccess, deckId, editCard = null }) =>
                                     </div>
                                 ))}
                             </div>
+
+                            <Form.Item
+                                label={<span className="text-sm font-semibold text-gray-700">Hình ảnh</span>}
+                                name="url"
+                            >
+                                <div className="space-y-3">
+                                    {imageUrl && (
+                                        <div className="relative border rounded-lg overflow-hidden">
+                                            <img
+                                                src={imageUrl}
+                                                alt="Preview"
+                                                className="w-full h-40 object-cover"
+                                            />
+                                            <Button
+                                                type="text"
+                                                danger
+                                                icon={<DeleteOutlined />}
+                                                onClick={handleRemoveImage}
+                                                className="absolute top-2 right-2 bg-white bg-opacity-80 hover:bg-opacity-100"
+                                                size="small"
+                                                title="Xóa ảnh"
+                                            />
+                                        </div>
+                                    )}
+
+                                    <Upload
+                                        accept="image/*"
+                                        showUploadList={false}
+                                        beforeUpload={(file) => {
+                                            const isLt5M = file.size / 1024 / 1024 < 5;
+                                            if (!isLt5M) {
+                                                message.error('Kích thước ảnh phải nhỏ hơn 5MB!');
+                                                return false;
+                                            }
+
+                                            const isImage = file.type.startsWith('image/');
+                                            if (!isImage) {
+                                                message.error('Chỉ được upload file ảnh!');
+                                                return false;
+                                            }
+
+                                            handleImageUpload(file);
+                                            return false;
+                                        }}
+                                    >
+                                        <Button
+                                            icon={<UploadOutlined />}
+                                            loading={imageUploading}
+                                            className="w-full"
+                                            size="large"
+                                        >
+                                            {imageUploading ? 'Đang upload...' : (imageUrl ? 'Đổi ảnh' : 'Chọn ảnh')}
+                                        </Button>
+                                    </Upload>
+
+                                    {/* URL input as fallback */}
+                                    <Input
+                                        placeholder="Hoặc nhập URL ảnh"
+                                        value={imageUrl}
+                                        onChange={(e) => {
+                                            setImageUrl(e.target.value);
+                                            form.setFieldsValue({ url: e.target.value });
+                                        }}
+                                        className="rounded-lg border-gray-300 focus:border-blue-500"
+                                        size="large"
+                                    />
+                                </div>
+                            </Form.Item>
                         </div>
                     </div>
 
-                    {/* Action Buttons */}
                     <div className="flex gap-3 pt-4 border-t border-gray-200">
                         <Button
                             onClick={handleCancel}

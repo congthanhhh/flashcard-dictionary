@@ -206,6 +206,26 @@ const CardDetail = () => {
         setIsLoginModalOpen(true);
     };
 
+    const handlePlaySound = (text) => {
+        if ('speechSynthesis' in window) {
+            // Stop any current speech
+            window.speechSynthesis.cancel();
+
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'en-US'; // Set language to English
+            utterance.rate = 0.8; // Slow down speech a bit
+            utterance.pitch = 1;
+            utterance.volume = 1;
+
+            window.speechSynthesis.speak(utterance);
+        } else {
+            messageApi.warning({
+                content: 'Trình duyệt không hỗ trợ chức năng đọc từ',
+                duration: 2,
+            });
+        }
+    };
+
     return (
         <div className="max-w-screen-xl mx-auto p-6">
             {contextHolder}
@@ -301,8 +321,10 @@ const CardDetail = () => {
                                                 <Button
                                                     type="text"
                                                     icon={<SoundOutlined />}
+                                                    onClick={() => handlePlaySound(card.name)}
                                                     className="text-blue-500 hover:bg-blue-50"
-                                                    size="small"
+                                                    size="middle"
+                                                    title="Phát âm từ"
                                                 />
                                             </div>
 

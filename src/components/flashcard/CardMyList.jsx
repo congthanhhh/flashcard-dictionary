@@ -1,4 +1,4 @@
-import { FileTextOutlined, LoadingOutlined, UsergroupAddOutlined, UserOutlined, PlusOutlined, FolderAddOutlined } from '@ant-design/icons'
+import { FileTextOutlined, LoadingOutlined, UsergroupAddOutlined, UserOutlined, PlusOutlined, FolderAddOutlined, EditOutlined } from '@ant-design/icons'
 import { Card, Spin, Button, Empty } from 'antd'
 import { useNavigate } from 'react-router-dom';
 import PaginationFC from './PaginationFC';
@@ -11,6 +11,8 @@ const CardMyList = () => {
     const [loading, setLoading] = useState(true);
     const [decks, setDecks] = useState([]);
     const [showNewDeckModal, setShowNewDeckModal] = useState(false);
+    const [showEditDeckModal, setShowEditDeckModal] = useState(false);
+    const [editingDeck, setEditingDeck] = useState(null);
     const [pagination, setPagination] = useState({
         currentPage: 1,
         totalPages: 1,
@@ -58,8 +60,17 @@ const CardMyList = () => {
     };
 
     const handleDeckCreated = (newDeck) => {
-        // Refresh the deck list
         loadUserDecks(1);
+    };
+
+    const handleEditDeck = (deck) => {
+        setEditingDeck(deck);
+        setShowEditDeckModal(true);
+    };
+
+    const handleDeckUpdated = (updatedDeck) => {
+        loadUserDecks(pagination.currentPage);
+        setEditingDeck(null);
     };
 
     return (
@@ -123,18 +134,30 @@ const CardMyList = () => {
                         <Card
                             loading={loading}
                             key={deck._id}
-                            onClick={() => handleCardClick(deck._id)}
                             className="shadow-lg bg-slate-100
                         cursor-pointer transition-all duration-300 hover:shadow-lg hover:scale-105"
                             cover={
-                                <div className="h-32 overflow-hidden">
+                                <div className="h-32 overflow-hidden relative">
                                     <img
                                         alt={deck.name}
                                         src={deck.url || "https://gw.alipayobjects.com/zos/rmsportal/JiqGstEfoWAOHiTxclqi.png"}
                                         className="w-full h-full object-cover"
                                     />
+                                    {/* Edit button overlay */}
+                                    <Button
+                                        type="text"
+                                        icon={<EditOutlined />}
+                                        onClick={(e) => {
+                                            e.stopPropagation(); // Prevent card click
+                                            handleEditDeck(deck);
+                                        }}
+                                        className="absolute top-2 right-2 bg-white bg-opacity-80 hover:bg-opacity-100 text-blue-500 hover:text-blue-600 shadow-sm"
+                                        size="small"
+                                        title="Chỉnh sửa deck"
+                                    />
                                 </div>
                             }
+                            onClick={() => handleCardClick(deck._id)}
                         >
                             <div className="">
                                 <h3 className="text-base font-semibold text-gray-800 line-clamp-3 mb-2 leading-tight capitalize">
@@ -168,11 +191,21 @@ const CardMyList = () => {
                 />
             )}
 
-            {/* New Deck Modal */}
             <NewDeck
                 open={showNewDeckModal}
                 onClose={() => setShowNewDeckModal(false)}
                 onSuccess={handleDeckCreated}
+            />
+
+            {/* Edit Deck Modal */}
+            <NewDeck
+                open={showEditDeckModal}
+                onClose={() => {
+                    setShowEditDeckModal(false);
+                    setEditingDeck(null);
+                }}
+                onSuccess={handleDeckUpdated}
+                editDeck={editingDeck}
             />
         </div>
     )
