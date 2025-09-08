@@ -6,6 +6,8 @@ import PaginationFC from './PaginationFC';
 import NewCardSimple from '../CardModal/NewCardSimple';
 import AddToMyListModal from '../CardModal/AddToMyListModal';
 import ReviewSessionModal from '../CardModal/ReviewSessionModal';
+import LoginModal from '../auth/LoginModal';
+import RegisterModal from '../auth/RegisterModal';
 import { deleteCard } from '../../service/card';
 import {
     getDefaultDeckCards,
@@ -30,6 +32,9 @@ const CardDetail = () => {
     const [showAddToMyListModal, setShowAddToMyListModal] = useState(false);
     const [selectedCard, setSelectedCard] = useState(null);
     const [showReviewSessionModal, setShowReviewSessionModal] = useState(false);
+    const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+    const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
+    const [messageApi, contextHolder] = message.useMessage();
 
     const [isUserDeck, setIsUserDeck] = useState(location.state?.isUserDeck || false);
     const [pagination, setPagination] = useState({
@@ -39,13 +44,10 @@ const CardDetail = () => {
     });
     const PAGE_SIZE = 5;
 
-    // Cập nhật isUserDeck nếu location state thay đổi
     useEffect(() => {
         const newIsUserDeck = location.state?.isUserDeck || false;
         if (newIsUserDeck !== isUserDeck) {
-            console.log('Location state changed - updating isUserDeck to:', newIsUserDeck);
             setIsUserDeck(newIsUserDeck);
-            // Reload data with new deck type
             if (deckId) {
                 loadCards();
                 loadDeckInfo();
@@ -53,18 +55,15 @@ const CardDetail = () => {
         }
     }, [location.state?.isUserDeck]);
 
-    // Load data khi có deckId
     useEffect(() => {
         if (deckId) {
-            console.log('Initial load - isUserDeck:', isUserDeck, 'deckId:', deckId);
             loadCards();
             loadDeckInfo();
         }
-    }, [deckId]); // Chỉ dependency là deckId
+    }, [deckId]);
 
     const loadDeckInfo = async () => {
         try {
-            console.log('Loading deck info - isUserDeck:', isUserDeck, 'deckId:', deckId);
             let deckInfo;
             if (isUserDeck) {
                 deckInfo = await getUserDeckById(deckId);
@@ -80,7 +79,6 @@ const CardDetail = () => {
     const loadCards = async (page = 1, limit = PAGE_SIZE) => {
         try {
             setLoading(true);
-            console.log('Loading cards - isUserDeck:', isUserDeck, 'deckId:', deckId, 'page:', page);
             let response;
 
             if (isUserDeck) {
@@ -107,7 +105,6 @@ const CardDetail = () => {
     };
 
     const handleCardCreated = (newCard) => {
-        // Refresh the cards list
         loadCards(1);
     };
 
@@ -117,7 +114,6 @@ const CardDetail = () => {
     };
 
     const handleCardUpdated = (updatedCard) => {
-        // Refresh the cards list
         loadCards(pagination.currentPage);
         setEditingCard(null);
     };
@@ -135,7 +131,6 @@ const CardDetail = () => {
             await deleteCard(deletingCard._id);
             message.success('Xóa thẻ thành công!');
 
-            // Refresh cards list
             const currentPageCards = cards.length;
             if (currentPageCards === 1 && pagination.currentPage > 1) {
                 loadCards(pagination.currentPage - 1);
@@ -159,6 +154,18 @@ const CardDetail = () => {
     };
 
     const handleAddToMyList = (card) => {
+        const token = localStorage.getItem('authToken');
+        if (!token) {
+            messageApi.warning({
+                content: 'Vui lòng đăng nhập để thêm thẻ vào danh sách của bạn',
+                duration: 3,
+            });
+            setTimeout(() => {
+                setIsLoginModalOpen(true);
+            }, 1000);
+            return;
+        }
+
         setSelectedCard(card);
         setShowAddToMyListModal(true);
     };
@@ -173,8 +180,35 @@ const CardDetail = () => {
         });
     };
 
+    const handleLoginSuccess = () => {
+        setIsLoginModalOpen(false);
+        messageApi.success({
+            content: 'Đăng nhập thành công!',
+            duration: 2,
+        });
+    };
+
+    const handleCloseLoginModal = () => {
+        setIsLoginModalOpen(false);
+    };
+
+    const handleCloseRegisterModal = () => {
+        setIsRegisterModalOpen(false);
+    };
+
+    const handleSwitchToRegister = () => {
+        setIsLoginModalOpen(false);
+        setIsRegisterModalOpen(true);
+    };
+
+    const handleSwitchToLogin = () => {
+        setIsRegisterModalOpen(false);
+        setIsLoginModalOpen(true);
+    };
+
     return (
         <div className="max-w-screen-xl mx-auto p-6">
+            {contextHolder}
             <div className="max-w-4xl mx-auto">
                 <div className='text-2xl font-bold p-2 uppercase flex items-center gap-3'>
                     Flashcards: {deck?.name}
@@ -202,7 +236,6 @@ const CardDetail = () => {
                 </div>
                 <br />
                 <div className='w-full space-y-4'>
-                    {/* Quick Practice - tất cả thẻ */}
                     <Button
                         onClick={() => {
                             navigate(`/flashcard/${deckId}`, {
@@ -218,7 +251,6 @@ const CardDetail = () => {
                         🔄 Luyện tập nhanh (tất cả {deck?.size} thẻ)
                     </Button>
 
-                    {/* Review Session - đa dạng hóa */}
                     <Button
                         onClick={() => setShowReviewSessionModal(true)}
                         type="primary"
@@ -233,7 +265,6 @@ const CardDetail = () => {
                     List có {deck?.size} từ {pagination.totalCards > 0 && `(Hiển thị ${pagination.totalCards} thẻ)`}
                 </p>
 
-                {/* Hiển thị thông báo khi không có cards */}
                 {!loading && cards.length === 0 && (
                     <div className="text-center py-12">
                         <div className="text-gray-500 text-lg mb-4">
@@ -267,7 +298,6 @@ const CardDetail = () => {
                                             <div className="flex items-center gap-3">
                                                 <h1 className="text-3xl font-bold text-gray-800">{card.name}</h1>
                                                 <span className="text-gray-600 text-lg">({card.word_type})</span>
-                                                {/* <span className="text-blue-600 text-lg font-mono">/ ˈæbsənt/</span> */}
                                                 <Button
                                                     type="text"
                                                     icon={<SoundOutlined />}
@@ -364,7 +394,6 @@ const CardDetail = () => {
                 )}
             </div>
 
-            {/* New Card Modal */}
             <NewCardSimple
                 open={showNewCardModal}
                 onClose={() => setShowNewCardModal(false)}
@@ -372,7 +401,6 @@ const CardDetail = () => {
                 deckId={deckId}
             />
 
-            {/* Edit Card Modal */}
             <NewCardSimple
                 open={showEditCardModal}
                 onClose={() => {
@@ -384,7 +412,6 @@ const CardDetail = () => {
                 editCard={editingCard}
             />
 
-            {/* Delete Confirmation Modal */}
             <Modal
                 title={
                     <div className="flex items-center gap-2 text-lg">
@@ -433,7 +460,6 @@ const CardDetail = () => {
                 )}
             </Modal>
 
-
             <AddToMyListModal
                 open={showAddToMyListModal}
                 onClose={() => {
@@ -451,6 +477,19 @@ const CardDetail = () => {
                 deckName={deck?.name}
                 deckSize={deck?.size || 0}
                 isUserDeck={isUserDeck}
+            />
+
+            <LoginModal
+                isOpen={isLoginModalOpen}
+                onClose={handleCloseLoginModal}
+                onSwitchToRegister={handleSwitchToRegister}
+                onLoginSuccess={handleLoginSuccess}
+            />
+
+            <RegisterModal
+                isOpen={isRegisterModalOpen}
+                onClose={handleCloseRegisterModal}
+                onSwitchToLogin={handleSwitchToLogin}
             />
         </div>
     )
