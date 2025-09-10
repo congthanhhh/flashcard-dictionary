@@ -1,12 +1,20 @@
 import { SearchOutlined } from '@ant-design/icons'
 import { Input } from 'antd'
 import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 
 const SearchInput = () => {
     const navigate = useNavigate();
+    const [searchTerm, setSearchTerm] = useState('');
 
     const handleSearch = () => {
-        navigate('/search');
+        if (searchTerm.trim()) {
+            navigate(`/search?q=${encodeURIComponent(searchTerm.trim())}`);
+        }
+    };
+
+    const handleInputChange = (e) => {
+        setSearchTerm(e.target.value);
     };
 
     return (
@@ -16,6 +24,8 @@ const SearchInput = () => {
                     placeholder="Tìm kiếm từ vựng hoặc chủ đề..."
                     suffix={<SearchOutlined onClick={handleSearch} />}
                     size="large"
+                    value={searchTerm}
+                    onChange={handleInputChange}
                     onPressEnter={handleSearch}
                     className="max-w-md w-full"
                     style={{ borderRadius: '8px' }}

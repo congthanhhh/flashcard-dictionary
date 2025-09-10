@@ -14,7 +14,7 @@ const CardMain = () => {
         totalPages: 1,
         totalDecks: 0
     });
-    const PAGE_SIZE = 1;
+    const PAGE_SIZE = 8;
 
     useEffect(() => {
         loadDefaultDecks(1);
