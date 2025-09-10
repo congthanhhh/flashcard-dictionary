@@ -36,7 +36,7 @@ const CardDetail = () => {
     const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
     const [messageApi, contextHolder] = message.useMessage();
 
-    const [isUserDeck, setIsUserDeck] = useState(location.state?.isUserDeck || false);
+    const isUserDeck = location.state?.isUserDeck || false;
     const [pagination, setPagination] = useState({
         currentPage: 1,
         totalPages: 1,
@@ -45,22 +45,11 @@ const CardDetail = () => {
     const PAGE_SIZE = 5;
 
     useEffect(() => {
-        const newIsUserDeck = location.state?.isUserDeck || false;
-        if (newIsUserDeck !== isUserDeck) {
-            setIsUserDeck(newIsUserDeck);
-            if (deckId) {
-                loadCards();
-                loadDeckInfo();
-            }
-        }
-    }, [location.state?.isUserDeck]);
-
-    useEffect(() => {
         if (deckId) {
             loadCards();
             loadDeckInfo();
         }
-    }, [deckId]);
+    }, [deckId, location.state?.isUserDeck]);
 
     const loadDeckInfo = async () => {
         try {
@@ -174,7 +163,7 @@ const CardDetail = () => {
         navigate(`/flashcard/${deckId}`, {
             state: {
                 isUserDeck,
-                mode: 'smart',
+                isSmartMode: true,
                 sessionConfig
             }
         });
@@ -261,7 +250,7 @@ const CardDetail = () => {
                             navigate(`/flashcard/${deckId}`, {
                                 state: {
                                     isUserDeck: isUserDeck,
-                                    mode: 'all'
+                                    isSmartMode: false
                                 }
                             });
                         }}

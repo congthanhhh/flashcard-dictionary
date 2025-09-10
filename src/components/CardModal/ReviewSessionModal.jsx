@@ -5,32 +5,20 @@ import { PlayCircleOutlined, BookOutlined } from '@ant-design/icons';
 const ReviewSessionModal = ({ open, onClose, onStartSession, deckName, deckSize, isUserDeck }) => {
     const [form] = Form.useForm();
     const [loading, setLoading] = useState(false);
-
+    const [messageApi, contextHolder] = message.useMessage();
     const handleSubmit = async (values) => {
         try {
             setLoading(true);
             const sessionConfig = {
-                flashcard: values.flashcard || 0
+                flashcard: values.flashcard || deckSize
             };
-
-            // Validate total không vượt quá deck size
-            const total = sessionConfig.flashcard;
-            if (total > deckSize) {
-                message.warning(`Tổng số thẻ không được vượt quá ${deckSize} thẻ có trong deck`);
-                return;
-            }
-
-            if (total === 0) {
-                message.warning('Vui lòng chọn ít nhất 1 thẻ để luyện tập');
-                return;
-            }
 
             onStartSession(sessionConfig);
             form.resetFields();
             onClose();
         } catch (error) {
             console.error('Error creating session:', error);
-            message.error('Không thể tạo phiên luyện tập');
+            messageApi.error('Không thể tạo phiên luyện tập');
         } finally {
             setLoading(false);
         }
@@ -55,6 +43,7 @@ const ReviewSessionModal = ({ open, onClose, onStartSession, deckName, deckSize,
             width={600}
             centered
         >
+            {contextHolder}
             <div className="space-y-4">
                 {/* Deck Info */}
                 <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
@@ -78,7 +67,7 @@ const ReviewSessionModal = ({ open, onClose, onStartSession, deckName, deckSize,
                     layout="vertical"
                     onFinish={handleSubmit}
                     initialValues={{
-                        flashcard: 10
+                        flashcard: deckSize
                     }}
                 >
                     {/* Flashcard */}

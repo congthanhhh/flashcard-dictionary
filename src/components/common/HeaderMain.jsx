@@ -76,12 +76,10 @@ const HeaderMain = () => {
         content: 'Vui lòng đăng nhập để sử dụng tính năng này',
         duration: 3,
       });
-      // Có thể mở modal đăng nhập luôn
       setTimeout(() => {
         setIsLoginModalOpen(true);
       }, 1000);
     } else {
-      // Navigate to CardMyList - cần tạo route này
       navigate('/my-list');
     }
   };
@@ -140,9 +138,6 @@ const HeaderMain = () => {
             onClick={() => navigate('/')}
           >
             Trang chủ
-          </span>
-          <span className="text-gray-600 hover:text-blue-500 cursor-pointer">
-            Đang học
           </span>
           <span
             className="text-gray-600 hover:text-blue-500 cursor-pointer"

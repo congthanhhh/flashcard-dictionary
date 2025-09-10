@@ -46,7 +46,6 @@ export default function FlashCard() {
   const [cardRatings, setCardRatings] = useState({});
   const [favoriteCards, setFavoriteCards] = useState(new Set());
   const [showHint, setShowHint] = useState({});
-  const [mode, setMode] = useState('all');
   const [isSmartMode, setIsSmartMode] = useState(false);
   const [reviewedCards, setReviewedCards] = useState(new Set());
   const [showAddToMyListModal, setShowAddToMyListModal] = useState(false);
@@ -59,28 +58,25 @@ export default function FlashCard() {
     }));
   };
 
+
   useEffect(() => {
     let detectedIsUserDeck = false;
-    let detectedMode = 'all';
+    let detectedIsSmartMode = false;
 
     if (location.state?.isUserDeck !== undefined) {
       detectedIsUserDeck = location.state.isUserDeck;
-    } else {
-      const referrer = document.referrer;
-      detectedIsUserDeck = referrer.includes('/my-list');
     }
 
-    if (location.state?.mode) {
-      detectedMode = location.state.mode;
+    if (location.state?.isSmartMode !== undefined) {
+      detectedIsSmartMode = location.state.isSmartMode;
     }
 
     setIsUserDeck(detectedIsUserDeck);
-    setMode(detectedMode);
-    setIsSmartMode(detectedMode === 'smart');
+    setIsSmartMode(detectedIsSmartMode);
 
     if (deckId) {
       setTimeout(() => {
-        if (detectedMode === 'smart') {
+        if (detectedIsSmartMode) {
           createSmartSession(detectedIsUserDeck, location.state?.sessionConfig);
         } else {
           loadAllCards(detectedIsUserDeck);
@@ -138,13 +134,9 @@ export default function FlashCard() {
     }
   };
 
-  const createSmartSession = async (userDeck = isUserDeck, customSessionConfig = null) => {
+  const createSmartSession = async (userDeck = isUserDeck, sessionConfig) => {
     try {
       setLoading(true);
-
-      const sessionConfig = customSessionConfig || {
-        flashcard: 20
-      };
 
       let response;
       if (userDeck) {
@@ -203,12 +195,6 @@ export default function FlashCard() {
       [cardId]: difficulty
     }));
 
-    const difficultyText = {
-      'easy': 'Dễ',
-      'medium': 'Trung bình',
-      'hard': 'Khó'
-    };
-
     if (isUserDeck && isSmartMode) {
       try {
         await submitCardReview(cardId, {
@@ -264,10 +250,55 @@ export default function FlashCard() {
     }
   };
 
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
         <Spin size="large" tip="Đang tải flashcards..." />
+      </div>
+    );
+  }
+
+  // Hiển thị màn hình kết quả khi học xong ở chế độ isSmartMode
+  if (isSmartMode && reviewedCards.size === flashcards.length && flashcards.length > 0) {
+    const easyCount = Object.values(cardRatings).filter(r => r === 'easy').length;
+    const mediumCount = Object.values(cardRatings).filter(r => r === 'medium').length;
+    const hardCount = Object.values(cardRatings).filter(r => r === 'hard').length;
+
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div className="bg-white/90 rounded-2xl shadow-2xl p-10 max-w-lg w-full text-center animate-fadeIn">
+          <h2 className="text-3xl font-bold text-purple-700 mb-4">🎉 Hoàn thành phiên học thông minh!</h2>
+          <p className="text-lg text-gray-700 mb-6">Bạn đã review tất cả <span className="font-semibold text-blue-600">{flashcards.length}</span> thẻ trong deck <span className="font-semibold text-indigo-600">{deck?.name}</span>.</p>
+          <div className="flex justify-center gap-6 mb-8">
+            <div className="flex flex-col items-center">
+              <SmileOutlined className="text-green-500 text-3xl mb-1" />
+              <span className="font-bold text-green-600 text-xl">{easyCount}</span>
+              <span className="text-sm text-gray-500">Dễ</span>
+            </div>
+            <div className="flex flex-col items-center">
+              <MehOutlined className="text-yellow-500 text-3xl mb-1" />
+              <span className="font-bold text-yellow-600 text-xl">{mediumCount}</span>
+              <span className="text-sm text-gray-500">Trung bình</span>
+            </div>
+            <div className="flex flex-col items-center">
+              <FrownOutlined className="text-red-500 text-3xl mb-1" />
+              <span className="font-bold text-red-600 text-xl">{hardCount}</span>
+              <span className="text-sm text-gray-500">Khó</span>
+            </div>
+          </div>
+          <div className="mb-6">
+            <p className="text-base text-gray-600">Cố gắng luyện tập thêm các thẻ <span className="text-red-500 font-semibold">Khó</span> để ghi nhớ tốt hơn nhé!</p>
+          </div>
+          <Button
+            type="primary"
+            size="large"
+            className="bg-blue-500 hover:bg-blue-600 border-blue-500 hover:border-blue-600 px-8"
+            onClick={() => navigate(`/card-detail/${deckId}`, { state: { isUserDeck } })}
+          >
+            Quay lại Deck
+          </Button>
+        </div>
       </div>
     );
   }
@@ -341,7 +372,7 @@ export default function FlashCard() {
                 Thẻ {index + 1} / {flashcards.length}
               </span>
               <span className="text-gray-600">
-                {favoriteCards.size} yêu thích • {Object.keys(cardRatings).length} đã đánh giá
+                {Object.keys(cardRatings).length} đã đánh giá
               </span>
             </div>
           </div>
@@ -364,24 +395,6 @@ export default function FlashCard() {
             {flashcards.map((card) => (
               <SwiperSlide key={card.id} className="flex justify-center items-center">
                 <div style={{ perspective: '1000px' }} className="w-full relative">
-                  {cardRatings[card.id] && (
-                    <div className="absolute -top-4 -right-4 z-30">
-                      <div className="relative">
-                        <div className={`absolute inset-0 rounded-full blur-lg scale-110 ${cardRatings[card.id] === 'easy' ? 'bg-green-400/60' :
-                          cardRatings[card.id] === 'medium' ? 'bg-yellow-400/60' : 'bg-red-400/60'
-                          }`}></div>
-                        <div className={`relative rounded-full p-4 shadow-2xl border-3 border-white transform hover:scale-110 transition-transform duration-200 ${cardRatings[card.id] === 'easy' ? 'bg-gradient-to-br from-green-400 via-green-500 to-green-600' :
-                          cardRatings[card.id] === 'medium' ? 'bg-gradient-to-br from-yellow-400 via-yellow-500 to-yellow-600' :
-                            'bg-gradient-to-br from-red-400 via-red-500 to-red-600'
-                          }`}>
-                          {cardRatings[card.id] === 'easy' ? <SmileOutlined className="text-white text-xl drop-shadow-lg" /> :
-                            cardRatings[card.id] === 'medium' ? <MehOutlined className="text-white text-xl drop-shadow-lg" /> :
-                              <FrownOutlined className="text-white text-xl drop-shadow-lg" />}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
                   <Card
                     onClick={handleCardFlip}
                     className="cursor-pointer relative shadow-xl hover:shadow-2xl border-0"
@@ -582,7 +595,7 @@ export default function FlashCard() {
           )}
 
           <div className="flex justify-center gap-6 ">
-            {isUserDeck && (
+            {isUserDeck && isSmartMode && (
               <>
                 <Button
                   type={cardRatings[flashcards[index]?.id] === 'easy' ? 'primary' : 'default'}

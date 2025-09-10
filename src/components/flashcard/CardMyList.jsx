@@ -36,12 +36,9 @@ const CardMyList = () => {
                 totalDecks: response.totalDecks
             });
 
-            console.log('User decks loaded:', response);
         } catch (error) {
             console.error('Error loading user decks:', error);
-            // Thêm xử lý lỗi để hiển thị thông báo cho người dùng
             if (error.message?.includes('401') || error.message?.includes('Unauthorized')) {
-                // Redirect to login if unauthorized
                 navigate('/');
             }
         } finally {
@@ -59,19 +56,19 @@ const CardMyList = () => {
         });
     };
 
-    const handleDeckCreated = (newDeck) => {
+    const handleDeckCreated = () => {
         loadUserDecks(1);
     };
 
+    const handleDeckUpdated = () => {
+        loadUserDecks(pagination.currentPage);
+        setEditingDeck(null);
+    };
     const handleEditDeck = (deck) => {
         setEditingDeck(deck);
         setShowEditDeckModal(true);
     };
 
-    const handleDeckUpdated = (updatedDeck) => {
-        loadUserDecks(pagination.currentPage);
-        setEditingDeck(null);
-    };
 
     return (
         <div className="max-w-screen-xl mx-auto p-6">
@@ -143,12 +140,11 @@ const CardMyList = () => {
                                         src={deck.url || "https://gw.alipayobjects.com/zos/rmsportal/JiqGstEfoWAOHiTxclqi.png"}
                                         className="w-full h-full object-cover"
                                     />
-                                    {/* Edit button overlay */}
                                     <Button
                                         type="text"
                                         icon={<EditOutlined />}
                                         onClick={(e) => {
-                                            e.stopPropagation(); // Prevent card click
+                                            e.stopPropagation();
                                             handleEditDeck(deck);
                                         }}
                                         className="absolute top-2 right-2 bg-white bg-opacity-80 hover:bg-opacity-100 text-blue-500 hover:text-blue-600 shadow-sm"
@@ -197,7 +193,6 @@ const CardMyList = () => {
                 onSuccess={handleDeckCreated}
             />
 
-            {/* Edit Deck Modal */}
             <NewDeck
                 open={showEditDeckModal}
                 onClose={() => {

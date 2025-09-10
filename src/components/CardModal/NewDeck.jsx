@@ -36,18 +36,17 @@ const NewDeck = ({ open, onClose, onSuccess, editDeck = null }) => {
                 url: imageUrl || ''
             };
 
-            let result;
             if (isEditMode) {
-                result = await updateUserDeck(editDeck._id, deckData);
+                await updateUserDeck(editDeck._id, deckData);
                 message.success('Cập nhật deck thành công!');
             } else {
-                result = await createUserDeck(deckData);
+                await createUserDeck(deckData);
                 message.success('Tạo deck thành công!');
             }
 
             form.resetFields();
             setImageUrl('');
-            onSuccess?.(result);
+            onSuccess?.();
             onClose();
         } catch (error) {
             message.error(error.message || 'Không thể lưu deck');
